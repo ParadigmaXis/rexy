@@ -102,10 +102,11 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             } catch (WebException ex) {
                 if (ex.Response != null) {
                     context.Response.StatusCode = (int)(ex.Response as HttpWebResponse).StatusCode;
-                } else {
+                    context.Response.StatusDescription = (ex.Response as HttpWebResponse).StatusDescription;
+                }
+                else {
                     context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 }
-                context.Response.StatusDescription = (ex.Response as HttpWebResponse).StatusDescription;
                 context.Response.End();
                 return;
             }
