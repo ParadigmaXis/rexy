@@ -1,0 +1,7 @@
+RabbitMQ.Adapters/.vs/
+RabbitMQ.Adapters/HelloWorld.Services/bin/
+RabbitMQ.Adapters/HelloWorld.Services/obj/
+RabbitMQ.Adapters/RabbitMQ.Adapters.HttpHandlers/bin/
+RabbitMQ.Adapters/RabbitMQ.Adapters.HttpHandlers/obj/
+RabbitMQ.Adapters/packages/
+RabbitMQ.Adapters/RabbitMQ.Adapters.WebServiceCaller/obj/
