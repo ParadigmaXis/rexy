@@ -8,3 +8,5 @@ RabbitMQ.Adapters/RabbitMQ.Adapters.WebServiceCaller/obj/
 RabbitMQ.Adapters/RabbitMQ.Adapters.WebServiceCaller/bin/
 *.user
 *.suo
+RabbitMQ.Adapters/RabbitMQ.Adapters.Common/bin/
+RabbitMQ.Adapters/RabbitMQ.Adapters.Common/obj/

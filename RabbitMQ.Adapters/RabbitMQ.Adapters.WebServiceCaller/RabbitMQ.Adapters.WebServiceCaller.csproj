@@ -78,6 +78,12 @@
       <DependentUpon>ProjectInstaller.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RabbitMQ.Adapters.Common\RabbitMQ.Adapters.Common.csproj">
+      <Project>{e3318c19-c4e7-4e11-9c19-0c4638addf23}</Project>
+      <Name>RabbitMQ.Adapters.Common</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

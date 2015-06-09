@@ -1,4 +1,7 @@
-﻿using System;
+﻿using RabbitMQ.Adapters.Common;
+using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -7,12 +10,11 @@ using System.Xml;
 using System.Xml.Linq;
 
 namespace RabbitMQ.Adapters.HttpHandlers {
-    public class ReverseProxyHttpHandler: IHttpHandler/*, IHttpHandlerFactory*/ {
+    public class ReverseProxyHttpHandler: IHttpHandler {
         bool IHttpHandler.IsReusable {
             get { return true; }
         }
-        private static String[] RestrictedHeaders { get { return new String[] { "Connection", "Content-Length", "Date", "Expect", "Host", "If-Modified-Since", "Range", "Transfer-Encoding", "Proxy-Connection" }; } }
-        private static String[] RestrictedHeadersViaProperty { get { return new String[] { "Accept", "Content-Type", "Referer", "User-Agent" }; } }
+        
 
         void IHttpHandler.ProcessRequest(HttpContext context) {
             const string IN_URL = "http://aura/rabbitmq-adapters/helloworld/HelloWorldService.asmx";
@@ -24,81 +26,85 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             System.Diagnostics.EventLog.WriteEntry("ASP.NET 4.0.30319.0", String.Format("Redirect {0} to {1}{2}", context.Request.Url, url, context.Request.IsAuthenticated ? " with authentication" : ""));
             
             try {
-                // prepare request forwarding
-                var request = (HttpWebRequest)WebRequest.Create(url.Uri);
+                //// prepare request forwarding
+                //var request = (HttpWebRequest)WebRequest.Create(url.Uri);
 
-                request.Method = context.Request.HttpMethod;
-                if (context.Request.AcceptTypes != null) {
-                    request.Accept = String.Join(", ", context.Request.AcceptTypes);
-                }
-                request.ContentType = context.Request.ContentType;
-                request.UserAgent = context.Request.UserAgent;
-                request.ContentLength = context.Request.ContentLength;
-
-                foreach (var key in request.Headers.AllKeys.Except(RestrictedHeaders).Except(RestrictedHeadersViaProperty)) {
-                    request.Headers.Add(key, context.Request.Headers[key]);
-                }
-                if (context.Request.ContentLength > 0) {
-                    var inStream = context.Request.GetBufferedInputStream();
-                    var buffer = new byte[context.Request.ContentLength];
-                    inStream.Read(buffer, 0, context.Request.ContentLength);
-
-                    var outStream = request.GetRequestStream();
-                    outStream.Write(buffer, 0, context.Request.ContentLength);
-                    outStream.Close();
-                }
-                Func<WebResponse> CallWebService = () => {
-                    if (context.Request.IsAuthenticated) {
-                        using (var impersonationContext = context.Request.LogonUserIdentity.Impersonate()) {
-                            request.Credentials = CredentialCache.DefaultNetworkCredentials;
-                            return request.GetResponse();
-                        }
-                    }
-                    return request.GetResponse();
-                };
-                // forward
-                var response = CallWebService();
-
-                //foreach (var key in response.Headers.AllKeys.Except(RestrictedHeaders).Except(RestrictedHeadersViaProperty)) {
-                //    System.Diagnostics.EventLog.WriteEntry("ASP.NET 4.0.30319.0", String.Format("Setting Header[{0}] to {1}", key, response.Headers[key]));
-                //    context.Response.Headers.Add(key, response.Headers[key]);
+                //request.Method = context.Request.HttpMethod;
+                //if (context.Request.AcceptTypes != null) {
+                //    request.Accept = String.Join(", ", context.Request.AcceptTypes);
                 //}
-                context.Response.ContentType = response.ContentType;
-                if (response.ContentLength > 0) {
-                    var inStream = response.GetResponseStream();
-                    var buffer = new byte[response.ContentLength];
-                    inStream.Read(buffer, 0, (int)response.ContentLength);
-                    var document = new XmlDocument();
-                    document.Load(new System.IO.MemoryStream(buffer, 0, buffer.Length));
-                    if (document.DocumentElement.NamespaceURI == "http://schemas.xmlsoap.org/wsdl/" && document.DocumentElement.LocalName == "definitions") {
-                        var nsmgr = new XmlNamespaceManager(new NameTable());
-                        nsmgr.AddNamespace("wsdl", "http://schemas.xmlsoap.org/wsdl/");
-                        nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/wsdl/soap/");
-                        nsmgr.AddNamespace("soap12", "http://schemas.xmlsoap.org/wsdl/soap12/");
-                        var nodes = document.DocumentElement.SelectNodes("/wsdl:definitions/wsdl:service/wsdl:port/soap:address", nsmgr);
-                        var nodes12 = document.DocumentElement.SelectNodes("/wsdl:definitions/wsdl:service/wsdl:port/soap12:address", nsmgr);
-                        foreach (var node in nodes.Cast<XmlElement>().Concat(nodes12.Cast<XmlElement>())) {
-                            var attr = node.Attributes.GetNamedItem("location");
-                            attr.Value = attr.Value.Replace(OUT_URL, IN_URL);
-                        }
-                        using (var ms = new System.IO.MemoryStream()) {
-                            using (var writer = new System.IO.StreamWriter(ms, System.Text.Encoding.UTF8)) {
-                                document.Save(writer);
-                            }
-                            buffer = ms.ToArray();
-                        }
-                        nsmgr.AddNamespace("s", "http://www.w3.org/2001/XMLSchema");
-                        var includes = document.DocumentElement.SelectNodes("/wsdl:definitions/s:schema/s:include", nsmgr);
-                        var imports = document.DocumentElement.SelectNodes("/wsdl:definitions/s:schema/s:import", nsmgr);
-                        foreach (var i in includes.Cast<XmlElement>().Concat(imports.Cast<XmlElement>())) {
-                            var attr = i.Attributes.GetNamedItem("schemaLocation");
-                            attr.Value = attr.Value.Replace(OUT_URL, IN_URL);
-                        }
-                    }
-                    var outStream = context.Response.OutputStream;
-                    outStream.Write(buffer, 0, buffer.Length);
-                    outStream.Close();
-                }
+                //request.ContentType = context.Request.ContentType;
+                //request.UserAgent = context.Request.UserAgent;
+                //request.ContentLength = context.Request.ContentLength;
+
+                //foreach (var key in context.Request.Headers.AllKeys.ExceptHttpRestrictedHeaders()) {
+                //    request.Headers.Add(key, context.Request.Headers[key]);
+                //}
+                //if (context.Request.ContentLength > 0) {
+                //    var buffer = GetRequestBuffer(context);
+
+                //    var outStream = request.GetRequestStream();
+                //    outStream.Write(buffer, 0, context.Request.ContentLength);
+                //    outStream.Close();
+                //}
+                //Func<WebResponse> CallWebService = () => {
+                //    if (context.Request.IsAuthenticated) {
+                //        using (var impersonationContext = context.Request.LogonUserIdentity.Impersonate()) {
+                //            request.Credentials = CredentialCache.DefaultNetworkCredentials;
+                //            return request.GetResponse();
+                //        }
+                //    }
+                //    return request.GetResponse();
+                //};
+                //// forward
+                //var response = CallWebService();
+
+                ////foreach (var key in response.Headers.AllKeys.ExceptHttpRestrictedHeaders()) {
+                ////    System.Diagnostics.EventLog.WriteEntry("ASP.NET 4.0.30319.0", String.Format("Setting Header[{0}] to {1}", key, response.Headers[key]));
+                ////    context.Response.Headers.Add(key, response.Headers[key]);
+                ////}
+                //context.Response.ContentType = response.ContentType;
+                //if (response.ContentLength > 0) {
+                //    var inStream = response.GetResponseStream();
+                //    var buffer = new byte[response.ContentLength];
+                //    inStream.Read(buffer, 0, (int)response.ContentLength);
+                //    try {
+                //        var document = new XmlDocument();
+                //        document.Load(new System.IO.MemoryStream(buffer, 0, buffer.Length));
+                //        if (document.DocumentElement.NamespaceURI == "http://schemas.xmlsoap.org/wsdl/" && document.DocumentElement.LocalName == "definitions") {
+                //            var nsmgr = new XmlNamespaceManager(new NameTable());
+                //            nsmgr.AddNamespace("wsdl", "http://schemas.xmlsoap.org/wsdl/");
+                //            nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/wsdl/soap/");
+                //            nsmgr.AddNamespace("soap12", "http://schemas.xmlsoap.org/wsdl/soap12/");
+                //            var nodes = document.DocumentElement.SelectNodes("/wsdl:definitions/wsdl:service/wsdl:port/soap:address", nsmgr);
+                //            var nodes12 = document.DocumentElement.SelectNodes("/wsdl:definitions/wsdl:service/wsdl:port/soap12:address", nsmgr);
+                //            foreach (var node in nodes.Cast<XmlElement>().Concat(nodes12.Cast<XmlElement>())) {
+                //                var attr = node.Attributes.GetNamedItem("location");
+                //                attr.Value = attr.Value.Replace(OUT_URL, IN_URL);
+                //            }
+                //            using (var ms = new System.IO.MemoryStream()) {
+                //                using (var writer = new System.IO.StreamWriter(ms, System.Text.Encoding.UTF8)) {
+                //                    document.Save(writer);
+                //                }
+                //                buffer = ms.ToArray();
+                //            }
+                //            nsmgr.AddNamespace("s", "http://www.w3.org/2001/XMLSchema");
+                //            var includes = document.DocumentElement.SelectNodes("/wsdl:definitions/s:schema/s:include", nsmgr);
+                //            var imports = document.DocumentElement.SelectNodes("/wsdl:definitions/s:schema/s:import", nsmgr);
+                //            foreach (var i in includes.Cast<XmlElement>().Concat(imports.Cast<XmlElement>())) {
+                //                var attr = i.Attributes.GetNamedItem("schemaLocation");
+                //                attr.Value = attr.Value.Replace(OUT_URL, IN_URL);
+                //            }
+                //        }
+                //    } catch (Exception ex) {
+                //        // FIXME: log the exception somewhere
+                //        // response is not XML, so don't process it
+                //    }
+                //    var outStream = context.Response.OutputStream;
+                //    outStream.Write(buffer, 0, buffer.Length);
+                //    outStream.Close();
+                //}
+                PostAndWait(context);
             } catch (WebException ex) {
                 if (ex.Response != null) {
                     context.Response.StatusCode = (int)(ex.Response as HttpWebResponse).StatusCode;
@@ -111,13 +117,65 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 return;
             }
         }
+        private void PostAndWait(HttpContext context) {
+            var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-http-handler", Password = "isa-http-handler" };
+            using (var connection = factory.CreateConnection()) {
+                using (var channel = connection.CreateModel()) {
+                    var privateQueue = channel.QueueDeclare();
+                    var consumer = new QueueingBasicConsumer(channel);
+                    channel.BasicConsume(privateQueue.QueueName, false, consumer);
 
-        //IHttpHandler IHttpHandlerFactory.GetHandler(HttpContext context, string requestType, string url, string pathTranslated) {
-        //    return new ReverseProxyHttpHandler();
-        //}
+                    var basicProperties = channel.CreateBasicProperties();
+                    basicProperties.Headers = new Dictionary<String, Object>();
+                    foreach (var key in context.Request.Headers.AllKeys.ExceptHttpRestrictedHeaders()) {
+                        basicProperties.Headers.Add("http-" + key, context.Request.Headers[key]);
+                    }
+                    basicProperties.Headers.Add(Constants.RequestGatewayUrl, context.Request.Url.ToString());
+                    var destinationUrl = new UriBuilder("http://localhost:8888/helloworld/HelloWorldService.asmx");
+                    if (!String.IsNullOrEmpty(context.Request.Url.Query)) {
+                        destinationUrl.Query = context.Request.Url.Query.Substring(1);
+                    }
+                    basicProperties.Headers.Add(Constants.RequestDestinationUrl, destinationUrl.Uri.ToString());
+                    basicProperties.Headers.Add(Constants.RequestMethod, context.Request.HttpMethod);
+                    if (context.Request.AcceptTypes != null) {
+                        basicProperties.Headers.Add(Constants.RequestAccept, String.Join(", ", context.Request.AcceptTypes));
+                    }
+                    basicProperties.Headers.Add(Constants.RequestContentType, context.Request.ContentType);
+                    basicProperties.Headers.Add(Constants.RequestIsAuthenticated, context.Request.IsAuthenticated);
 
-        //void IHttpHandlerFactory.ReleaseHandler(IHttpHandler handler) {
-            
-        //}
+                    basicProperties.CorrelationId = Guid.NewGuid().ToString();
+                    basicProperties.ReplyTo = privateQueue.QueueName;
+                    channel.BasicPublish(new PublicationAddress(ExchangeType.Headers, Constants.WebServiceAdapterExchange, ""), basicProperties, GetRequestBuffer(context));
+
+                    var msg = new BasicDeliverEventArgs();
+                    while (consumer.Queue.Dequeue(600000, out msg)) {
+                        //assert msg.BasicProperties.CorrelationId == basicProperties.CorrelationId
+                        if (msg.BasicProperties.Type == Constants.SoapAuthMessagetype) {
+                            // handshake stuff
+                        } else {
+                            if (msg.Body.Length > 0) {
+                                var outStream = context.Response.OutputStream;
+                                outStream.Write(msg.Body, 0, msg.Body.Length);
+                                outStream.Close();
+                            }
+                            context.Response.ContentType = "text/xml";
+                            return;
+                        }
+                    }
+                    // TODO: log timeout
+                    throw new HttpException(504, "Gateway Timeout");
+                }
+            }
+        }
+
+        private byte[] GetRequestBuffer(HttpContext context) {
+            if (context.Request.ContentLength == 0) {
+                return new byte[0];
+            }
+            var inStream = context.Request.GetBufferedInputStream();
+            var buffer = new byte[context.Request.ContentLength];
+            inStream.Read(buffer, 0, context.Request.ContentLength);
+            return buffer;
+        }
     }
 }
