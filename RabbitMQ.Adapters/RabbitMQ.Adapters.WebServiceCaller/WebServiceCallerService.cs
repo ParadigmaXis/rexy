@@ -19,10 +19,16 @@ namespace RabbitMQ.Adapters.WebServiceCaller
 
         protected override void OnStart(string[] args)
         {
+            //new System.Threading.Thread(Main);
         }
 
         protected override void OnStop()
         {
+            // AskToStop(thread);
+            //thread.Join();
+        }
+
+        public void Main() {
         }
     }
 }
