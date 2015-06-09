@@ -14,12 +14,17 @@ namespace RabbitMQ.Adapters.WebServiceCaller
         /// </summary>
         static void Main()
         {
+#if (DEBUG)
+            var service = new WebServiceCallerService();
+            //service.Process();
+#else
             ServiceBase[] ServicesToRun;
             ServicesToRun = new ServiceBase[]
             {
                 new WebServiceCallerService()
             };
             ServiceBase.Run(ServicesToRun);
+#endif
         }
     }
 }
