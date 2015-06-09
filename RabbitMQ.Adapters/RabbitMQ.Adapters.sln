@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMQ.Adapters.HttpHandl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloWorld.Services", "HelloWorld.Services\HelloWorld.Services.csproj", "{762040D6-8A1C-4E44-AC7E-8B3BFFA532D1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMQ.Adapters.WebServiceCaller", "RabbitMQ.Adapters.WebServiceCaller\RabbitMQ.Adapters.WebServiceCaller.csproj", "{4F8D5EAB-CA24-4DBD-90BF-136B7A5AE335}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{762040D6-8A1C-4E44-AC7E-8B3BFFA532D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{762040D6-8A1C-4E44-AC7E-8B3BFFA532D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{762040D6-8A1C-4E44-AC7E-8B3BFFA532D1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4F8D5EAB-CA24-4DBD-90BF-136B7A5AE335}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4F8D5EAB-CA24-4DBD-90BF-136B7A5AE335}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4F8D5EAB-CA24-4DBD-90BF-136B7A5AE335}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4F8D5EAB-CA24-4DBD-90BF-136B7A5AE335}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
