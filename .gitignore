@@ -6,3 +6,5 @@ RabbitMQ.Adapters/RabbitMQ.Adapters.HttpHandlers/obj/
 RabbitMQ.Adapters/packages/
 RabbitMQ.Adapters/RabbitMQ.Adapters.WebServiceCaller/obj/
 RabbitMQ.Adapters/RabbitMQ.Adapters.WebServiceCaller/bin/
+*.user
+*.suo
