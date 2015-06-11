@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace RabbitMQ.Adapters.WebServiceCaller {
     [TestFixture]
-    public class TestWebServiceCaller: AssertionHelper {
+    public class TestWebServiceCaller : AssertionHelper {
         private int responseStatusCode;
         private String responseStatusDescription;
         private Dictionary<String, String> responseHeaders;
@@ -40,6 +40,14 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
             Expect(basicProperties.Headers, Is.Not.Null);
             Expect(basicProperties.Headers.Count, Is.EqualTo(2 + responseHeaders.Count));
             Expect(basicProperties.Headers.Keys, Is.EquivalentTo(responseHeaders.Keys.Select(k => "http-" + k).Concat(new string[] { Constants.ResponseStatusCode, Constants.ResponseStatusDescription })));
+        }
+
+        [Test]
+        public void ExtractHttpHeaders() {
+            var basicProperties = new WebServiceCallerService().CreateBasicProperties(responseStatusCode, responseStatusDescription, responseHeaders);
+
+            var headers = basicProperties.GetHttpHeaders();
+            Expect(headers.Keys, Is.EquivalentTo(responseHeaders.Keys));
         }
     }
 }

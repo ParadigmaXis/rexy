@@ -38,6 +38,7 @@ namespace RabbitMQ.Adapters.Common
         /// <param name="header"></param>
         /// <returns></returns>
         public static String GetUTF8String(object header) {
+            if (header is string) return (string)header;
             return System.Text.Encoding.UTF8.GetString((byte[])header);
         }
 

@@ -56,5 +56,13 @@ namespace RabbitMQ.Adapters.HttpHandlers.TestFixtures {
             Expect(basicProperties.Headers.Count, Is.EqualTo(4 + this.requestHeaders.Count));
             Expect(basicProperties.Headers.Keys, Is.EquivalentTo(this.requestHeaders.Keys.Select(k => "http-" + k).Concat(new String[] { Constants.RequestMethod, Constants.RequestGatewayUrl, Constants.RequestDestinationUrl, Constants.RequestIsAuthenticated })));
         }
+
+        [Test]
+        public void ExtractHttpHeaders() {
+            var basicProperties = new ReverseProxyHttpHandler().CreateBasicProperties(this.requestMethod, this.requestGatewayUrl, this.requestDestinationUrl, this.requestHeaders, this.requestIsAuthenticated);
+
+            var headers = basicProperties.GetHttpHeaders();
+            Expect(headers.Keys, Is.EquivalentTo(requestHeaders.Keys));
+        }
     }
 }
