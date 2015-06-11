@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RabbitMQ.Client;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,12 +14,16 @@ namespace RabbitMQ.Adapters.Common
         public static IEnumerable<String> ExceptHttpRestrictedHeaders(this IEnumerable<String> self) {
             return self.Except(HttpRestrictedHeaders).Except(HttpRestrictedHeadersViaProperty);
         }
+        public static IDictionary<String, String> GetHttpHeaders(this IBasicProperties basicProperties) {
+            return basicProperties.Headers.Where(kvp => kvp.Key.StartsWith(HttpHeaderPrefix)).ToDictionary(kvp => kvp.Key.Substring(HttpHeaderPrefix.Length), kvp => GetUTF8String(kvp.Value));
+        }
+
+        public const String HttpHeaderPrefix = "http-";
+
         public const String RequestGatewayUrl = "request-GatewayUrl";
         public const String RequestDestinationUrl = "request-DestinationUrl";
         public const String RequestMethod = "request-Method";
-        public const String RequestAccept = "request-Accept";
-        public const String RequestContentType = "request-Content-Type";
-        public const String RequestIsAuthenticated = "request-WWW-Authenticate";
+        public const String RequestIsAuthenticated = "request-Authorization";
 
         public const String ResponseStatusCode = "response-StatusCode";
         public const String ResponseStatusDescription = "response-StatusDescription";
@@ -35,5 +40,6 @@ namespace RabbitMQ.Adapters.Common
         public static String GetUTF8String(object header) {
             return System.Text.Encoding.UTF8.GetString((byte[])header);
         }
+
     }
 }

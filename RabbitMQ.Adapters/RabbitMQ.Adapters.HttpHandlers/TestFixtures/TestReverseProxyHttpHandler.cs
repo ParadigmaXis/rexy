@@ -3,11 +3,13 @@ using RabbitMQ.Adapters.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Net;
 using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
+using System.Web.Hosting;
 
 namespace RabbitMQ.Adapters.HttpHandlers.TestFixtures {
     [TestFixture]
@@ -16,7 +18,7 @@ namespace RabbitMQ.Adapters.HttpHandlers.TestFixtures {
         private Uri requestGatewayUrl;
         private Uri requestDestinationUrl;
         private Dictionary<String, String> requestHeaders;
-        private string requestBody;
+        private byte[] requestBody;
         private bool requestIsAuthenticated;
         private WindowsIdentity requestLogonUserIdentity;
 
@@ -32,7 +34,7 @@ namespace RabbitMQ.Adapters.HttpHandlers.TestFixtures {
                 { "Content-Length", "0" },
                 { "SOAPAction", "http://www.paradigmaxis.pt/isa/2015/06/08/hello-world/HelloWorld" }
             };
-            this.requestBody =
+            this.requestBody = System.Text.Encoding.UTF8.GetBytes(
                 "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
                 "<soap:Envelope xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
                 "  <soap:Body>" +
@@ -40,7 +42,7 @@ namespace RabbitMQ.Adapters.HttpHandlers.TestFixtures {
                 "      <message>string</message>" +
                 "    </HelloWorld>" +
                 "  </soap:Body>" +
-                "</soap:Envelope>";
+                "</soap:Envelope>");
             this.requestIsAuthenticated = false;
             this.requestLogonUserIdentity = (WindowsIdentity)null;
         }
@@ -54,18 +56,5 @@ namespace RabbitMQ.Adapters.HttpHandlers.TestFixtures {
             Expect(basicProperties.Headers.Count, Is.EqualTo(4 + this.requestHeaders.Count));
             Expect(basicProperties.Headers.Keys, Is.EquivalentTo(this.requestHeaders.Keys.Select(k => "http-" + k).Concat(new String[] { Constants.RequestMethod, Constants.RequestGatewayUrl, Constants.RequestDestinationUrl, Constants.RequestIsAuthenticated })));
         }
-
-        [Test]
-        public void RunMe()
-        {
-            // Operation
-
-            var responseStatusCode = Int32.MinValue;
-            var responseStatusDescription = String.Empty;
-            var responseHeaders = new Dictionary<String, String>();
-            var responseBody = new byte[0];
-            Assert.IsTrue(false);
-        }
-
     }
 }

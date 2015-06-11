@@ -1,4 +1,8 @@
-﻿namespace RabbitMQ.Adapters.WebServiceCaller
+﻿using RabbitMQ.Client;
+using System;
+using System.Collections.Generic;
+
+namespace RabbitMQ.Adapters.WebServiceCaller
 {
     partial class WebServiceCallerService
     {

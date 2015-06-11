@@ -121,14 +121,18 @@ namespace RabbitMQ.Adapters.HttpHandlers {
 
         internal IBasicProperties CreateBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated) {
             var result = new RabbitMQ.Client.Framing.BasicProperties() {
-                Headers = new Dictionary<String, Object>()
+                Headers = new Dictionary<string, object>()
             };
             result.Headers.Add(Constants.RequestMethod, requestMethod);
-            result.Headers.Add(Constants.RequestGatewayUrl, requestGatewayUrl);
-            result.Headers.Add(Constants.RequestDestinationUrl, requestDestinationUrl);
+            result.Headers.Add(Constants.RequestGatewayUrl, requestGatewayUrl.ToString());
+            result.Headers.Add(Constants.RequestDestinationUrl, requestDestinationUrl.ToString());
             result.Headers.Add(Constants.RequestIsAuthenticated, requestIsAuthenticated);
-            requestHeaders.ToList().ForEach(kvp => result.Headers.Add("http-" + kvp.Key, kvp.Value));
+            requestHeaders.ToList().ForEach(kvp => result.Headers.Add(Constants.HttpHeaderPrefix + kvp.Key, kvp.Value));
             return result;
+        }
+
+        private Dictionary<string, string> ExtracthttpRequestHeaders(HttpRequest request) {
+            return request.Headers.AllKeys.ToDictionary(k => k, k => request.Headers[k]);
         }
 
         private void PostAndWait(HttpContext context) {
@@ -139,23 +143,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                     var consumer = new QueueingBasicConsumer(channel);
                     channel.BasicConsume(privateQueue.QueueName, false, consumer);
 
-                    var basicProperties = channel.CreateBasicProperties();
-                    basicProperties.Headers = new Dictionary<String, Object>();
-                    foreach (var key in context.Request.Headers.AllKeys.ExceptHttpRestrictedHeaders()) {
-                        basicProperties.Headers.Add("http-" + key, context.Request.Headers[key]);
-                    }
-                    basicProperties.Headers.Add(Constants.RequestGatewayUrl, context.Request.Url.ToString());
-                    var destinationUrl = new UriBuilder("http://localhost:8888/helloworld/HelloWorldService.asmx");
-                    if (!String.IsNullOrEmpty(context.Request.Url.Query)) {
-                        destinationUrl.Query = context.Request.Url.Query.Substring(1);
-                    }
-                    basicProperties.Headers.Add(Constants.RequestDestinationUrl, destinationUrl.Uri.ToString());
-                    basicProperties.Headers.Add(Constants.RequestMethod, context.Request.HttpMethod);
-                    if (context.Request.AcceptTypes != null) {
-                        basicProperties.Headers.Add(Constants.RequestAccept, String.Join(", ", context.Request.AcceptTypes));
-                    }
-                    basicProperties.Headers.Add(Constants.RequestContentType, context.Request.ContentType);
-                    basicProperties.Headers.Add(Constants.RequestIsAuthenticated, context.Request.IsAuthenticated);
+                    var basicProperties = CreateBasicProperties(context.Request.HttpMethod, context.Request.Url, new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx?WSDL"), ExtracthttpRequestHeaders(context.Request), context.Request.IsAuthenticated);
 
                     basicProperties.CorrelationId = Guid.NewGuid().ToString();
                     basicProperties.ReplyTo = privateQueue.QueueName;
@@ -167,12 +155,19 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                         if (msg.BasicProperties.Type == Constants.SoapAuthMessagetype) {
                             // handshake stuff
                         } else {
+                            foreach (var kvp in msg.BasicProperties.GetHttpHeaders()) {
+                                if ("Content-Type".Equals(kvp.Key)) {
+                                    context.Response.ContentType = kvp.Value;
+                                } else {
+                                    context.Response.Headers.Add(kvp.Key, kvp.Value);
+                                }
+                            }
                             if (msg.Body.Length > 0) {
                                 var outStream = context.Response.OutputStream;
                                 outStream.Write(msg.Body, 0, msg.Body.Length);
                                 outStream.Close();
                             }
-                            context.Response.ContentType = "text/xml";
+                            
                             return;
                         }
                     }

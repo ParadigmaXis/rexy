@@ -44,20 +44,20 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                     var request = (HttpWebRequest)WebRequest.Create(destinationUrl);
 
                     request.Method = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestMethod]);
-                    if (msg.BasicProperties.Headers.ContainsKey(Constants.RequestAccept)) {
-                        request.Accept = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestAccept]);
-                    }
-                    request.ContentType = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestContentType]);
-                    request.ContentLength = msg.Body.Length;
-                    foreach (var key in msg.BasicProperties.Headers.Keys) {
-                        if (key.StartsWith("http-")) {
-                            var httpKey = key.Substring("http-".Length);
-                            if (Constants.HttpRestrictedHeaders.Contains(httpKey) || Constants.HttpRestrictedHeadersViaProperty.Contains(httpKey)) {
-                                continue;
+                    foreach (var kvp in msg.BasicProperties.GetHttpHeaders()) {
+                        if (Constants.HttpRestrictedHeaders.Contains(kvp.Key)) {
+                            continue;
+                        } else if (Constants.HttpRestrictedHeadersViaProperty.Contains(kvp.Key)) {
+                            if ("Accept".Equals(kvp.Key)) {
+                                request.Accept = kvp.Value;
+                            } else if ("Content-Type".Equals(kvp.Key)) {
+                                request.ContentType = kvp.Value;
                             }
-                            request.Headers.Add(httpKey, Constants.GetUTF8String(msg.BasicProperties.Headers[key]));
+                        } else {
+                            request.Headers.Add(kvp.Key, kvp.Value);
                         }
                     }
+                    request.ContentLength = msg.Body.Length;
                     if (msg.Body.Length > 0) {
                         var requestStream = request.GetRequestStream();
                         requestStream.Write(msg.Body, 0, msg.Body.Length);
@@ -78,8 +78,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                     try {
                         channel.BasicAck(msg.DeliveryTag, false);
                         var response = CallWebService();
-                        var basicproperties = channel.CreateBasicProperties();
-                        basicproperties.Headers = new Dictionary<String, Object>();
+                        var basicproperties = CreateBasicProperties(200, "OK", response.Headers.AllKeys.ToDictionary(k => k, k => response.Headers[k]));
                         basicproperties.CorrelationId = msg.BasicProperties.CorrelationId;
                         var buffer = new byte[response.ContentLength];
                         if (response.ContentLength > 0) {
@@ -91,20 +90,28 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                         channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicproperties, buffer);
                         channel.TxCommit();
                     } catch (WebException ex) {
-                        var basicproperties = channel.CreateBasicProperties();
-                        basicproperties.Headers = new Dictionary<String, Object>();
+                        IBasicProperties basicProperties;
                         if (ex.Response != null) {
-                            basicproperties.Headers.Add(Constants.ResponseStatusCode, (int)(ex.Response as HttpWebResponse).StatusCode);
-                            basicproperties.Headers.Add(Constants.ResponseStatusDescription, (ex.Response as HttpWebResponse).StatusDescription);
+                            basicProperties = CreateBasicProperties((int)(ex.Response as HttpWebResponse).StatusCode, (ex.Response as HttpWebResponse).StatusDescription, ex.Response.Headers.AllKeys.ToDictionary(k => k, k => ex.Response.Headers[k]));
                         } else {
-                            basicproperties.Headers.Add(Constants.ResponseStatusCode, (int)HttpStatusCode.InternalServerError);
+                            basicProperties = CreateBasicProperties((int)HttpStatusCode.ServiceUnavailable, "Service Unavailable", new Dictionary<string, string>());
                         }
-                        basicproperties.CorrelationId = msg.BasicProperties.CorrelationId;
-                        channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicproperties, new byte[0]);
+                        basicProperties.CorrelationId = msg.BasicProperties.CorrelationId;
+                        channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, new byte[0]);
                     }
 
                 }
             }
         }
+        internal IBasicProperties CreateBasicProperties(int responseStatusCode, string responseStatusDescription, Dictionary<string, string> responseHeaders) {
+            var result = new RabbitMQ.Client.Framing.BasicProperties() {
+                Headers = new Dictionary<String, object>()
+            };
+            result.Headers.Add(Constants.ResponseStatusCode, responseStatusCode);
+            result.Headers.Add(Constants.ResponseStatusDescription, responseStatusDescription);
+            responseHeaders.ToList().ForEach(kvp => result.Headers.Add(Constants.HttpHeaderPrefix + kvp.Key, kvp.Value));
+            return result;
+        }
+
     }
 }
