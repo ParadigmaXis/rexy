@@ -8,6 +8,7 @@ using System.Net;
 using System.Web;
 using System.Xml;
 using System.Xml.Linq;
+using System.Security.Principal;
 
 namespace RabbitMQ.Adapters.HttpHandlers {
     public class ReverseProxyHttpHandler: IHttpHandler {
@@ -117,6 +118,19 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 return;
             }
         }
+
+        internal IBasicProperties CreateBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated) {
+            var result = new RabbitMQ.Client.Framing.BasicProperties() {
+                Headers = new Dictionary<String, Object>()
+            };
+            result.Headers.Add(Constants.RequestMethod, requestMethod);
+            result.Headers.Add(Constants.RequestGatewayUrl, requestGatewayUrl);
+            result.Headers.Add(Constants.RequestDestinationUrl, requestDestinationUrl);
+            result.Headers.Add(Constants.RequestIsAuthenticated, requestIsAuthenticated);
+            requestHeaders.ToList().ForEach(kvp => result.Headers.Add("http-" + kvp.Key, kvp.Value));
+            return result;
+        }
+
         private void PostAndWait(HttpContext context) {
             var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-http-handler", Password = "isa-http-handler" };
             using (var connection = factory.CreateConnection()) {
