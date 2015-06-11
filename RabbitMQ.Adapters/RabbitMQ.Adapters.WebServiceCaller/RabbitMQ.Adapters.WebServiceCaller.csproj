@@ -33,8 +33,16 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="nunit.core.engine, Version=3.0.5610.33198, Culture=neutral, PublicKeyToken=2638cd05610744eb, processorArchitecture=MSIL">
+      <HintPath>..\packages\NUnit3TestAdapter.3.0.2-ctp-3\lib\nunit.core.engine.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="nunit.framework, Version=3.0.5610.33194, Culture=neutral, PublicKeyToken=2638cd05610744eb, processorArchitecture=MSIL">
       <HintPath>..\packages\NUnit.3.0.0-beta-2\lib\net45\nunit.framework.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="NUnit3.TestAdapter, Version=3.0.2.0, Culture=neutral, PublicKeyToken=4cb40d35494691ac, processorArchitecture=MSIL">
+      <HintPath>..\packages\NUnit3TestAdapter.3.0.2-ctp-3\lib\NUnit3.TestAdapter.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="RabbitMQ.Client, Version=3.5.3.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
@@ -60,6 +68,7 @@
     <Compile Include="ProjectInstaller.Designer.cs">
       <DependentUpon>ProjectInstaller.cs</DependentUpon>
     </Compile>
+    <Compile Include="TestFixtures\TestWebServiceCaller.cs" />
     <Compile Include="WebServiceCallerService.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -83,6 +92,10 @@
       <Project>{e3318c19-c4e7-4e11-9c19-0c4638addf23}</Project>
       <Name>RabbitMQ.Adapters.Common</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
