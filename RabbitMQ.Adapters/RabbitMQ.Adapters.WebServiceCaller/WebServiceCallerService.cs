@@ -78,7 +78,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                     try {
                         channel.BasicAck(msg.DeliveryTag, false);
                         var response = CallWebService();
-                        var basicproperties = CreateBasicProperties(200, "OK", response.Headers.AllKeys.ToDictionary(k => k, k => response.Headers[k]));
+                        var basicproperties = CreateResponseBasicProperties(200, "OK", response.Headers.AllKeys.ToDictionary(k => k, k => response.Headers[k]));
                         basicproperties.CorrelationId = msg.BasicProperties.CorrelationId;
                         var buffer = new byte[response.ContentLength];
                         if (response.ContentLength > 0) {
@@ -92,9 +92,9 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                     } catch (WebException ex) {
                         IBasicProperties basicProperties;
                         if (ex.Response != null) {
-                            basicProperties = CreateBasicProperties((int)(ex.Response as HttpWebResponse).StatusCode, (ex.Response as HttpWebResponse).StatusDescription, ex.Response.Headers.AllKeys.ToDictionary(k => k, k => ex.Response.Headers[k]));
+                            basicProperties = CreateResponseBasicProperties((int)(ex.Response as HttpWebResponse).StatusCode, (ex.Response as HttpWebResponse).StatusDescription, ex.Response.Headers.AllKeys.ToDictionary(k => k, k => ex.Response.Headers[k]));
                         } else {
-                            basicProperties = CreateBasicProperties((int)HttpStatusCode.ServiceUnavailable, "Service Unavailable", new Dictionary<string, string>());
+                            basicProperties = CreateResponseBasicProperties((int)HttpStatusCode.ServiceUnavailable, "Service Unavailable", new Dictionary<string, string>());
                         }
                         basicProperties.CorrelationId = msg.BasicProperties.CorrelationId;
                         channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, new byte[0]);
@@ -103,7 +103,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                 }
             }
         }
-        internal IBasicProperties CreateBasicProperties(int responseStatusCode, string responseStatusDescription, Dictionary<string, string> responseHeaders) {
+        internal IBasicProperties CreateResponseBasicProperties(int responseStatusCode, string responseStatusDescription, Dictionary<string, string> responseHeaders) {
             var result = new RabbitMQ.Client.Framing.BasicProperties() {
                 Headers = new Dictionary<String, object>()
             };

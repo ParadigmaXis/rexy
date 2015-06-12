@@ -138,10 +138,10 @@ namespace RabbitMQ.Adapters.HttpHandlers {
 
         private IBasicProperties HTTPRequestToRabbitMQBasicProperties(HttpRequest request)
         {
-            return CreateBasicProperties(request.HttpMethod, request.Url, new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx?WSDL"), ExtracthttpRequestHeaders(request), request.IsAuthenticated);
+            return CreateRequestBasicProperties(request.HttpMethod, request.Url, new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx?WSDL"), ExtracthttpRequestHeaders(request), request.IsAuthenticated);
         }
 
-        internal IBasicProperties CreateBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated)
+        internal IBasicProperties CreateRequestBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated)
         {
             var result = new RabbitMQ.Client.Framing.BasicProperties()
             {
