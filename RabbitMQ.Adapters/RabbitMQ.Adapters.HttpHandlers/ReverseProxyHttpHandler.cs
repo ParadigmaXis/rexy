@@ -11,6 +11,9 @@ using System.Xml.Linq;
 using System.Security.Principal;
 
 namespace RabbitMQ.Adapters.HttpHandlers {
+
+    class QueueTimeoutException : Exception { }
+
     public class ReverseProxyHttpHandler: IHttpHandler {
         bool IHttpHandler.IsReusable {
             get { return true; }
@@ -105,8 +108,22 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 //    outStream.Write(buffer, 0, buffer.Length);
                 //    outStream.Close();
                 //}
-                PostAndWait(context);
-            } catch (WebException ex) {
+
+                var basicProperties = HTTPRequestToRabbitMQBasicProperties(context.Request);
+                var body = GetRequestBuffer(context.Request);
+                var requestMsg = new RabbitMQMessage(basicProperties, body);
+                try
+                {
+                    var responseMsg = PostAndWait(requestMsg);
+                    RabbitMQMessageToHTTPResponse(responseMsg, context.Response);
+                }
+                catch (QueueTimeoutException ex)
+                {
+                    throw new HttpException(504, "Gateway Timeout");
+                }
+            }
+            catch (WebException ex)
+            {
                 if (ex.Response != null) {
                     context.Response.StatusCode = (int)(ex.Response as HttpWebResponse).StatusCode;
                     context.Response.StatusDescription = (ex.Response as HttpWebResponse).StatusDescription;
@@ -117,6 +134,33 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 context.Response.End();
                 return;
             }
+        }
+
+        private IBasicProperties HTTPRequestToRabbitMQBasicProperties(HttpRequest request)
+        {
+            return CreateBasicProperties(request.HttpMethod, request.Url, new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx?WSDL"), ExtracthttpRequestHeaders(request), request.IsAuthenticated);
+        }
+
+        private void RabbitMQMessageToHTTPResponse(RabbitMQMessage msg, HttpResponse response)
+        {
+            foreach (var kvp in msg.BasicProperties.GetHttpHeaders())
+            {
+                if ("Content-Type".Equals(kvp.Key))
+                {
+                    response.ContentType = kvp.Value;
+                }
+                else
+                {
+                    response.Headers.Add(kvp.Key, kvp.Value);
+                }
+            }
+            if (msg.Body.Length > 0)
+            {
+                var outStream = response.OutputStream;
+                outStream.Write(msg.Body, 0, msg.Body.Length);
+                outStream.Close();
+            }
+            return;
         }
 
         internal IBasicProperties CreateBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated) {
@@ -130,12 +174,12 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             requestHeaders.ToList().ForEach(kvp => result.Headers.Add(Constants.HttpHeaderPrefix + kvp.Key, kvp.Value));
             return result;
         }
-
+        
         private Dictionary<string, string> ExtracthttpRequestHeaders(HttpRequest request) {
             return request.Headers.AllKeys.ToDictionary(k => k, k => request.Headers[k]);
         }
 
-        private void PostAndWait(HttpContext context) {
+        private RabbitMQMessage PostAndWait(RabbitMQMessage requestMsg) {
             var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-http-handler", Password = "isa-http-handler" };
             using (var connection = factory.CreateConnection()) {
                 using (var channel = connection.CreateModel()) {
@@ -143,11 +187,9 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                     var consumer = new QueueingBasicConsumer(channel);
                     channel.BasicConsume(privateQueue.QueueName, false, consumer);
 
-                    var basicProperties = CreateBasicProperties(context.Request.HttpMethod, context.Request.Url, new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx?WSDL"), ExtracthttpRequestHeaders(context.Request), context.Request.IsAuthenticated);
-
-                    basicProperties.CorrelationId = Guid.NewGuid().ToString();
-                    basicProperties.ReplyTo = privateQueue.QueueName;
-                    channel.BasicPublish(new PublicationAddress(ExchangeType.Headers, Constants.WebServiceAdapterExchange, ""), basicProperties, GetRequestBuffer(context));
+                    requestMsg.BasicProperties.CorrelationId = Guid.NewGuid().ToString();
+                    requestMsg.BasicProperties.ReplyTo = privateQueue.QueueName;
+                    channel.BasicPublish(new PublicationAddress(ExchangeType.Headers, Constants.WebServiceAdapterExchange, ""), requestMsg.BasicProperties, requestMsg.Body);
 
                     var msg = new BasicDeliverEventArgs();
                     while (consumer.Queue.Dequeue(600000, out msg)) {
@@ -155,35 +197,25 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                         if (msg.BasicProperties.Type == Constants.SoapAuthMessagetype) {
                             // handshake stuff
                         } else {
-                            foreach (var kvp in msg.BasicProperties.GetHttpHeaders()) {
-                                if ("Content-Type".Equals(kvp.Key)) {
-                                    context.Response.ContentType = kvp.Value;
-                                } else {
-                                    context.Response.Headers.Add(kvp.Key, kvp.Value);
-                                }
-                            }
-                            if (msg.Body.Length > 0) {
-                                var outStream = context.Response.OutputStream;
-                                outStream.Write(msg.Body, 0, msg.Body.Length);
-                                outStream.Close();
-                            }
-                            
-                            return;
+                            return new RabbitMQMessage {
+                                    BasicProperties = msg.BasicProperties,
+                                    Body = msg.Body
+                                };
                         }
                     }
                     // TODO: log timeout
-                    throw new HttpException(504, "Gateway Timeout");
+                    throw new QueueTimeoutException();
                 }
             }
         }
 
-        private byte[] GetRequestBuffer(HttpContext context) {
-            if (context.Request.ContentLength == 0) {
+        private byte[] GetRequestBuffer(HttpRequest request) {
+            if (request.ContentLength == 0) {
                 return new byte[0];
             }
-            var inStream = context.Request.GetBufferedInputStream();
-            var buffer = new byte[context.Request.ContentLength];
-            inStream.Read(buffer, 0, context.Request.ContentLength);
+            var inStream = request.GetBufferedInputStream();
+            var buffer = new byte[request.ContentLength];
+            inStream.Read(buffer, 0, request.ContentLength);
             return buffer;
         }
     }
