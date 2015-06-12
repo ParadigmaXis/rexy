@@ -44,33 +44,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                     channel.BasicConsume(queue.QueueName, false, consumer);
                     while (true) {
                         var msg = consumer.Queue.Dequeue();
-
-                        var gatewayUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestGatewayUrl]);
-                        var destinationUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestDestinationUrl]);
-
-                        var request = (HttpWebRequest)WebRequest.Create(destinationUrl);
-
-                        request.Method = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestMethod]);
-                        foreach (var kvp in msg.BasicProperties.GetHttpHeaders()) {
-                            if (Constants.HttpRestrictedHeaders.Contains(kvp.Key)) {
-                                continue;
-                            } else if (Constants.HttpRestrictedHeadersViaProperty.Contains(kvp.Key)) {
-                                if ("Accept".Equals(kvp.Key)) {
-                                    request.Accept = kvp.Value;
-                                } else if ("Content-Type".Equals(kvp.Key)) {
-                                    request.ContentType = kvp.Value;
-                                }
-                            } else {
-                                request.Headers.Add(kvp.Key, kvp.Value);
-                            }
-                        }
-                        request.ContentLength = msg.Body.Length;
-                        if (msg.Body.Length > 0) {
-                            var requestStream = request.GetRequestStream();
-                            requestStream.Write(msg.Body, 0, msg.Body.Length);
-                            requestStream.Close();
-                        }
-
+                        var request = RabbitMQMessageToHttpWebRequest(msg);
                         Func<WebResponse> CallWebService = () => {
                             if ((bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated]) {
                                 Microsoft.Samples.Security.SSPI.ServerContext serverContext = null;
@@ -105,7 +79,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                         // forward
                         try {
                             var response = CallWebService();
-                            var basicproperties = CreateBasicProperties(200, "OK", response.Headers.AllKeys.ToDictionary(k => k, k => response.Headers[k]));
+                            var basicproperties = CreateResponseBasicProperties(200, "OK", response.Headers.AllKeys.ToDictionary(k => k, k => response.Headers[k]));
                             basicproperties.CorrelationId = msg.BasicProperties.CorrelationId;
                             var buffer = new byte[response.ContentLength];
                             if (response.ContentLength > 0) {
@@ -118,11 +92,11 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                             IBasicProperties basicProperties;
                             byte[] body = null;
                             if (ex.Response != null) {
-                                basicProperties = CreateBasicProperties((int)(ex.Response as HttpWebResponse).StatusCode, (ex.Response as HttpWebResponse).StatusDescription, ex.Response.Headers.AllKeys.ToDictionary(k => k, k => ex.Response.Headers[k]));
+                                basicProperties = CreateResponseBasicProperties((int)(ex.Response as HttpWebResponse).StatusCode, (ex.Response as HttpWebResponse).StatusDescription, ex.Response.Headers.AllKeys.ToDictionary(k => k, k => ex.Response.Headers[k]));
                                 body = new byte[ex.Response.ContentLength];
                                 ex.Response.GetResponseStream().Read(body, 0, (int)ex.Response.ContentLength);
                             } else {
-                                basicProperties = CreateBasicProperties((int)HttpStatusCode.ServiceUnavailable, "Service Unavailable", new Dictionary<string, string>());
+                                basicProperties = CreateResponseBasicProperties((int)HttpStatusCode.ServiceUnavailable, "Service Unavailable", new Dictionary<string, string>());
                             }
                             basicProperties.CorrelationId = msg.BasicProperties.CorrelationId;
                             channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body ?? new byte[0]);
@@ -131,7 +105,52 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                 }
             }
         }
-        internal IBasicProperties CreateBasicProperties(int responseStatusCode, string responseStatusDescription, Dictionary<string, string> responseHeaders) {
+
+        private static HttpWebRequest RabbitMQMessageToHttpWebRequest(Client.Events.BasicDeliverEventArgs msg)
+        {
+            //var gatewayUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestGatewayUrl]);
+            var destinationUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestDestinationUrl]);
+            var request = (HttpWebRequest)WebRequest.Create(destinationUrl);
+
+            request.Method = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestMethod]);
+            RecoverHttpHeadersToRequest(msg.BasicProperties.GetHttpHeaders(), request);
+            request.ContentLength = msg.Body.Length;
+            if (msg.Body.Length > 0)
+            {
+                var requestStream = request.GetRequestStream();
+                requestStream.Write(msg.Body, 0, msg.Body.Length);
+                requestStream.Close();
+            }
+            return request;
+        }
+
+        private static void RecoverHttpHeadersToRequest(IDictionary<string, string> httpHeaders, HttpWebRequest request)
+        {
+            foreach (var kvp in httpHeaders)
+            {
+                if (Constants.HttpRestrictedHeaders.Contains(kvp.Key))
+                {
+                    continue;
+                }
+                else if (Constants.HttpRestrictedHeadersViaProperty.Contains(kvp.Key))
+                {
+                    if ("Accept".Equals(kvp.Key))
+                    {
+                        request.Accept = kvp.Value;
+                    }
+                    else if ("Content-Type".Equals(kvp.Key))
+                    {
+                        request.ContentType = kvp.Value;
+                    }
+                }
+                else
+                {
+                    request.Headers.Add(kvp.Key, kvp.Value);
+                }
+            }
+        }
+
+        internal IBasicProperties CreateResponseBasicProperties(int responseStatusCode, string responseStatusDescription, Dictionary<string, string> responseHeaders) {
             var result = new RabbitMQ.Client.Framing.BasicProperties() {
                 Headers = new Dictionary<String, object>()
             };

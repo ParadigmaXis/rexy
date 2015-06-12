@@ -19,7 +19,6 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         bool IHttpHandler.IsReusable {
             get { return true; }
         }
-        
 
         void IHttpHandler.ProcessRequest(HttpContext context) {
             //const string IN_URL = "http://aura/rabbitmq-adapters/helloworld/HelloWorldService.asmx";
@@ -110,13 +109,13 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 //    outStream.Close();
                 //}
 
-                var basicProperties = HTTPRequestToRabbitMQBasicProperties(context.Request);
+                var basicProperties = HttpRequestToRabbitMQBasicProperties(context.Request);
                 var body = GetRequestBuffer(context.Request);
                 var requestMsg = new RabbitMQMessage(basicProperties, body);
                 try
                 {
                     var responseMsg = PostAndWait(requestMsg);
-                    RabbitMQMessageToHTTPResponse(responseMsg, context.Response);
+                    RabbitMQMessageToHttpResponse(responseMsg, context.Response);
                 }
                 catch (QueueTimeoutException ex)
                 {
@@ -137,12 +136,12 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             }
         }
 
-        private IBasicProperties HTTPRequestToRabbitMQBasicProperties(HttpRequest request)
+        private IBasicProperties HttpRequestToRabbitMQBasicProperties(HttpRequest request)
         {
-            return CreateBasicProperties(request.HttpMethod, request.Url, new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx?WSDL"), ExtracthttpRequestHeaders(request), request.IsAuthenticated);
+            return CreateRequestBasicProperties(request.HttpMethod, request.Url, new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx?WSDL"), ExtracthttpRequestHeaders(request), request.IsAuthenticated);
         }
 
-        internal IBasicProperties CreateBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated)
+        internal IBasicProperties CreateRequestBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated)
         {
             var result = new RabbitMQ.Client.Framing.BasicProperties()
             {
@@ -161,7 +160,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             return request.Headers.AllKeys.ToDictionary(k => k, k => request.Headers[k]);
         }
 
-        private void RabbitMQMessageToHTTPResponse(RabbitMQMessage msg, HttpResponse response)
+        private void RabbitMQMessageToHttpResponse(RabbitMQMessage msg, HttpResponse response)
         {
             foreach (var kvp in msg.BasicProperties.GetHttpHeaders())
             {

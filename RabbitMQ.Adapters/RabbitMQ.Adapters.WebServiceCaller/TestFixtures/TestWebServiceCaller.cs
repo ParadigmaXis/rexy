@@ -35,7 +35,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
 
         [Test]
         public void CreateBasicProperties() {
-            var basicProperties = new WebServiceCallerService().CreateBasicProperties(responseStatusCode, responseStatusDescription, responseHeaders);
+            var basicProperties = new WebServiceCallerService().CreateResponseBasicProperties(responseStatusCode, responseStatusDescription, responseHeaders);
             Expect(basicProperties, Is.Not.Null);
             Expect(basicProperties.Headers, Is.Not.Null);
             Expect(basicProperties.Headers.Count, Is.EqualTo(2 + responseHeaders.Count));
@@ -44,7 +44,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
 
         [Test]
         public void ExtractHttpHeaders() {
-            var basicProperties = new WebServiceCallerService().CreateBasicProperties(responseStatusCode, responseStatusDescription, responseHeaders);
+            var basicProperties = new WebServiceCallerService().CreateResponseBasicProperties(responseStatusCode, responseStatusDescription, responseHeaders);
 
             var headers = basicProperties.GetHttpHeaders();
             Expect(headers.Keys, Is.EquivalentTo(responseHeaders.Keys));
