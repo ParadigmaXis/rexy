@@ -31,6 +31,7 @@ namespace RabbitMQ.Adapters.Common
         public const String SoapAuthMessagetype = "SOAP-Auth";
         public const String WebServiceAdapterExchange = "isa.web-service-adapter";
 
+        public const String ContentTypeOctetStream = "application/octet-stream";
         /// <summary>
         /// This method decodes byte[] as UTF8 Strings.
         /// </summary>
