@@ -141,6 +141,25 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             return CreateBasicProperties(request.HttpMethod, request.Url, new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx?WSDL"), ExtracthttpRequestHeaders(request), request.IsAuthenticated);
         }
 
+        internal IBasicProperties CreateBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated)
+        {
+            var result = new RabbitMQ.Client.Framing.BasicProperties()
+            {
+                Headers = new Dictionary<string, object>()
+            };
+            result.Headers.Add(Constants.RequestMethod, requestMethod);
+            result.Headers.Add(Constants.RequestGatewayUrl, requestGatewayUrl.ToString());
+            result.Headers.Add(Constants.RequestDestinationUrl, requestDestinationUrl.ToString());
+            result.Headers.Add(Constants.RequestIsAuthenticated, requestIsAuthenticated);
+            requestHeaders.ToList().ForEach(kvp => result.Headers.Add(Constants.HttpHeaderPrefix + kvp.Key, kvp.Value));
+            return result;
+        }
+
+        private Dictionary<string, string> ExtracthttpRequestHeaders(HttpRequest request)
+        {
+            return request.Headers.AllKeys.ToDictionary(k => k, k => request.Headers[k]);
+        }
+
         private void RabbitMQMessageToHTTPResponse(RabbitMQMessage msg, HttpResponse response)
         {
             foreach (var kvp in msg.BasicProperties.GetHttpHeaders())
@@ -162,23 +181,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             }
             return;
         }
-
-        internal IBasicProperties CreateBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated) {
-            var result = new RabbitMQ.Client.Framing.BasicProperties() {
-                Headers = new Dictionary<string, object>()
-            };
-            result.Headers.Add(Constants.RequestMethod, requestMethod);
-            result.Headers.Add(Constants.RequestGatewayUrl, requestGatewayUrl.ToString());
-            result.Headers.Add(Constants.RequestDestinationUrl, requestDestinationUrl.ToString());
-            result.Headers.Add(Constants.RequestIsAuthenticated, requestIsAuthenticated);
-            requestHeaders.ToList().ForEach(kvp => result.Headers.Add(Constants.HttpHeaderPrefix + kvp.Key, kvp.Value));
-            return result;
-        }
-        
-        private Dictionary<string, string> ExtracthttpRequestHeaders(HttpRequest request) {
-            return request.Headers.AllKeys.ToDictionary(k => k, k => request.Headers[k]);
-        }
-
+       
         private RabbitMQMessage PostAndWait(RabbitMQMessage requestMsg) {
             var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-http-handler", Password = "isa-http-handler" };
             using (var connection = factory.CreateConnection()) {
