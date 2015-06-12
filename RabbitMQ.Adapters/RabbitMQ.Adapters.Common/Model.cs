@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 
-namespace RabbitMQ.Adapters.HttpHandlers
+namespace RabbitMQ.Adapters.Common
 {
     public class RabbitMQMessage
     {

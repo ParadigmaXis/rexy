@@ -44,7 +44,8 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                     channel.BasicConsume(queue.QueueName, false, consumer);
                     while (true) {
                         var msg = consumer.Queue.Dequeue();
-                        var request = RabbitMQMessageToHttpWebRequest(msg);
+                        var requestMsg = new RabbitMQMessage(msg.BasicProperties, msg.Body);
+                        var request = RabbitMQMessageToHttpWebRequest(requestMsg);
                         Func<WebResponse> CallWebService = () => {
                             if ((bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated]) {
                                 Microsoft.Samples.Security.SSPI.ServerContext serverContext = null;
@@ -106,7 +107,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
             }
         }
 
-        private static HttpWebRequest RabbitMQMessageToHttpWebRequest(Client.Events.BasicDeliverEventArgs msg)
+        private static HttpWebRequest RabbitMQMessageToHttpWebRequest(RabbitMQMessage msg)
         {
             //var gatewayUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestGatewayUrl]);
             var destinationUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestDestinationUrl]);
