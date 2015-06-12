@@ -18,7 +18,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         
 
         void IHttpHandler.ProcessRequest(HttpContext context) {
-            const string IN_URL = "http://aura/rabbitmq-adapters/helloworld/HelloWorldService.asmx";
+            //const string IN_URL = "http://aura/rabbitmq-adapters/helloworld/HelloWorldService.asmx";
             const string OUT_URL = "http://127.0.0.1/helloworld/HelloWorldService.asmx";
             var url = new UriBuilder(OUT_URL);
             if (!String.IsNullOrEmpty(context.Request.Url.Query)) {
