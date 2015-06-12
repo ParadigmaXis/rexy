@@ -9,6 +9,7 @@ using System.Web;
 using System.Xml;
 using System.Xml.Linq;
 using System.Security.Principal;
+using System.Diagnostics;
 
 namespace RabbitMQ.Adapters.HttpHandlers {
 
@@ -173,6 +174,10 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                     response.Headers.Add(kvp.Key, kvp.Value);
                 }
             }
+            if (msg.BasicProperties.Headers.ContainsKey(Constants.ResponseStatusCode)) {
+                response.StatusCode = (int)msg.BasicProperties.Headers[Constants.ResponseStatusCode];
+                response.StatusDescription = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.ResponseStatusDescription]);
+            }
             if (msg.Body.Length > 0)
             {
                 var outStream = response.OutputStream;
@@ -186,6 +191,13 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-http-handler", Password = "isa-http-handler" };
             using (var connection = factory.CreateConnection()) {
                 using (var channel = connection.CreateModel()) {
+                    channel.BasicAcks += (sender, e) => Debug.WriteLine(string.Format("RPHH::ACK {0} {1}", e.DeliveryTag, e.Multiple));
+                    channel.BasicNacks += (sender, e) => Debug.WriteLine(string.Format("RPHH::NACK {0} {1} {2}", e.DeliveryTag, e.Multiple, e.Requeue));
+                    channel.BasicRecoverOk += (sender, e) => Debug.WriteLine(string.Format("RPHH::RECOVER_OK"));
+                    channel.BasicReturn += (sender, e) => Debug.WriteLine(string.Format("RPHH::RETURN ..."));
+                    channel.CallbackException += (sender, e) => Debug.WriteLine(string.Format("RPHH::CALLBACK_EXCEPTION {0}", e.Exception.Message));
+                    channel.ModelShutdown += (sender, e) => Debug.WriteLine(string.Format("RPHH::MODEL_SHUTDOWN ..."));
+
                     var privateQueue = channel.QueueDeclare();
                     var consumer = new QueueingBasicConsumer(channel);
                     channel.BasicConsume(privateQueue.QueueName, false, consumer);
@@ -194,18 +206,23 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                     requestMsg.BasicProperties.ReplyTo = privateQueue.QueueName;
                     channel.BasicPublish(new PublicationAddress(ExchangeType.Headers, Constants.WebServiceAdapterExchange, ""), requestMsg.BasicProperties, requestMsg.Body);
 
-                    var msg = new BasicDeliverEventArgs();
+                    BasicDeliverEventArgs msg = null;
+                    var provider = new WindowsAuthenticationProvider(
+                        (basicProperties, body) => { channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body); }
+                        );
                     while (consumer.Queue.Dequeue(600000, out msg)) {
-                        //assert msg.BasicProperties.CorrelationId == basicProperties.CorrelationId
-                        if (msg.BasicProperties.Type == Constants.SoapAuthMessagetype) {
-                            // handshake stuff
+                        if (provider.IsAuthenticationMessage(msg)) {
+                            provider.HandleAuthenticationMessage(privateQueue.QueueName, msg);
                         } else {
+                            //assert msg.BasicProperties.CorrelationId == basicProperties.CorrelationId
                             return new RabbitMQMessage {
                                     BasicProperties = msg.BasicProperties,
                                     Body = msg.Body
                                 };
                         }
+                        Debug.WriteLine("HELLO");
                     }
+                    Debug.WriteLine("GOODBYE");
                     // TODO: log timeout
                     throw new QueueTimeoutException();
                 }

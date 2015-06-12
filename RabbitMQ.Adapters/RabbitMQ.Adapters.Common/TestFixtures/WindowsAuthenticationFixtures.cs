@@ -39,8 +39,16 @@ namespace RabbitMQ.Adapters.Common.TestFixtures {
             var providerQueue = new List<Client.Events.BasicDeliverEventArgs>();
             var receiverQueue = new List<Client.Events.BasicDeliverEventArgs>();
             var authenticated = false;
-            var provider = new WindowsAuthenticationProvider((basicProperties, body) => { receiverQueue.Add(new Client.Events.BasicDeliverEventArgs("", 0, false, "", "", basicProperties, body)); });
-            var receiver = new WindowsAuthenticationReceiver((basicProperties, body) => { providerQueue.Add(new Client.Events.BasicDeliverEventArgs("", 0, false, "", "", basicProperties, body)); }, serverContext => { authenticated = true; });
+            var provider = new WindowsAuthenticationProvider(
+                (basicProperties, body) => {
+                    receiverQueue.Add(new Client.Events.BasicDeliverEventArgs("", 0, false, "", "", basicProperties, body));
+                }
+                );
+            var receiver = new WindowsAuthenticationReceiver(
+                (basicProperties, body) => {
+                    providerQueue.Add(new Client.Events.BasicDeliverEventArgs("", 0, false, "", "", basicProperties, body));
+                },
+                serverContext => { authenticated = true; });
 
             receiver.RequestAuthentication("amq.gen-receiver");
             Expect(authenticated, Is.False);

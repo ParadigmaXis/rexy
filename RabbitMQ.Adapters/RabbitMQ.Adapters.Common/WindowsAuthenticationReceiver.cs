@@ -26,8 +26,6 @@ namespace RabbitMQ.Adapters.Common {
         public override void HandleAuthenticationMessage(string queueName, BasicDeliverEventArgs e) {
             if (!bool.Parse(Constants.GetUTF8String(e.BasicProperties.Headers["SSPI-ContinueProcessing"]))) {
                 Authenticated(serverContext);
-                serverContext.Dispose();
-                serverContext = null;
             } else {
                 if (serverContext == null) {
                     serverContext = new Microsoft.Samples.Security.SSPI.ServerContext(new Microsoft.Samples.Security.SSPI.ServerCredential(Microsoft.Samples.Security.SSPI.Credential.Package.Negotiate), e.Body);
