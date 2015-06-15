@@ -49,7 +49,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
 
                         // forward
                         try {
-                            var response = CallWebService(request, channel, consumer, queue, msg);
+                            var response = CallWebService(request, channel, msg);
                             var basicproperties = CreateResponseBasicProperties(200, "OK", response.Headers.AllKeys.ToDictionary(k => k, k => response.Headers[k]));
                             basicproperties.CorrelationId = msg.BasicProperties.CorrelationId;
                             var buffer = new byte[response.ContentLength];
@@ -76,33 +76,40 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                 }
             }
         }
-        private static WebResponse CallWebService(HttpWebRequest request, IModel channel, QueueingBasicConsumer consumer, QueueDeclareOk queue, Client.Events.BasicDeliverEventArgs msg) {
+        private static WebResponse CallWebService(HttpWebRequest request, IModel channel, Client.Events.BasicDeliverEventArgs msg) {
             if ((bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated]) {
-                Microsoft.Samples.Security.SSPI.ServerContext serverContext = null;
-                var receiver = new WindowsAuthenticationReceiver(
-                    (basicProperties, body) => { channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body); },
-                    (arg0) => { serverContext = arg0; }
-                    );
-                receiver.RequestAuthentication(queue.QueueName);
-                while (serverContext == null) {
-                    Client.Events.BasicDeliverEventArgs authReply;
-                    if (consumer.Queue.Dequeue(600000, out authReply)) {
-                        if (receiver.IsAuthenticationMessage(authReply)) {
-                            receiver.HandleAuthenticationMessage(queue.QueueName, authReply);
+                var authQueue = channel.QueueDeclare();
+                try {
+                    var consumer = new QueueingBasicConsumer(channel);
+                    channel.BasicConsume(authQueue.QueueName, true, consumer);
+                    Microsoft.Samples.Security.SSPI.ServerContext serverContext = null;
+                    var receiver = new WindowsAuthenticationReceiver(
+                        (basicProperties, body) => { channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body); },
+                        (arg0) => { serverContext = arg0; }
+                        );
+                    receiver.RequestAuthentication(authQueue.QueueName);
+                    while (serverContext == null) {
+                        Client.Events.BasicDeliverEventArgs authReply;
+                        if (consumer.Queue.Dequeue(600000, out authReply)) {
+                            if (receiver.IsAuthenticationMessage(authReply)) {
+                                receiver.HandleAuthenticationMessage(authQueue.QueueName, authReply);
+                            } else {
+                                throw new Exception();
+                            }
                         } else {
                             throw new Exception();
                         }
-                    } else {
-                        throw new Exception();
                     }
-                }
-                try {
-                    serverContext.ImpersonateClient();
-                    request.Credentials = CredentialCache.DefaultNetworkCredentials;
-                    return request.GetResponse();
+                    try {
+                        serverContext.ImpersonateClient();
+                        request.Credentials = CredentialCache.DefaultNetworkCredentials;
+                        return request.GetResponse();
+                    } finally {
+                        serverContext.RevertImpersonation();
+                        serverContext.Dispose();
+                    }
                 } finally {
-                    serverContext.RevertImpersonation();
-                    serverContext.Dispose();
+                    channel.QueueDelete(authQueue.QueueName);
                 }
             }
             return request.GetResponse();
@@ -160,6 +167,5 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
             responseHeaders.ToList().ForEach(kvp => result.Headers.Add(Constants.HttpHeaderPrefix + kvp.Key, kvp.Value));
             return result;
         }
-
     }
 }
