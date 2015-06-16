@@ -114,8 +114,15 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 var requestMsg = new RabbitMQMessage(basicProperties, body);
                 try
                 {
-                    var responseMsg = PostAndWait(requestMsg);
-                    RabbitMQMessageToHttpResponse(responseMsg, context.Response);
+                    if (context.Request.IsAuthenticated) {
+                        using (var impersonation = context.Request.LogonUserIdentity.Impersonate()) {
+                            var responseMsg = PostAndWait(requestMsg);
+                            RabbitMQMessageToHttpResponse(responseMsg, context.Response);
+                        }
+                    } else {
+                        var responseMsg = PostAndWait(requestMsg);
+                        RabbitMQMessageToHttpResponse(responseMsg, context.Response);
+                    }
                 }
                 catch (QueueTimeoutException ex)
                 {
@@ -138,18 +145,18 @@ namespace RabbitMQ.Adapters.HttpHandlers {
 
         private IBasicProperties HttpRequestToRabbitMQBasicProperties(HttpRequest request)
         {
-            return CreateRequestBasicProperties(request.HttpMethod, request.Url, new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx?WSDL"), ExtracthttpRequestHeaders(request), request.IsAuthenticated);
+            return CreateRequestBasicProperties(request.HttpMethod, request.Url, new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx"), ExtracthttpRequestHeaders(request), request.IsAuthenticated);
         }
 
         internal IBasicProperties CreateRequestBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated)
         {
-            var result = new RabbitMQ.Client.Framing.BasicProperties()
-            {
+            var result = new RabbitMQ.Client.Framing.BasicProperties() {
                 Headers = new Dictionary<string, object>()
             };
+            var requestDestinationUrlWithQuery = new UriBuilder(requestDestinationUrl) { Query = requestGatewayUrl.Query.StartsWith("?") ? requestGatewayUrl.Query.Substring(1) : "" }.Uri;
             result.Headers.Add(Constants.RequestMethod, requestMethod);
             result.Headers.Add(Constants.RequestGatewayUrl, requestGatewayUrl.ToString());
-            result.Headers.Add(Constants.RequestDestinationUrl, requestDestinationUrl.ToString());
+            result.Headers.Add(Constants.RequestDestinationUrl, requestDestinationUrlWithQuery.ToString());
             result.Headers.Add(Constants.RequestIsAuthenticated, requestIsAuthenticated);
             requestHeaders.ToList().ForEach(kvp => result.Headers.Add(Constants.HttpHeaderPrefix + kvp.Key, kvp.Value));
             return result;
@@ -214,14 +221,14 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                             provider.HandleAuthenticationMessage(privateQueue.QueueName, msg);
                         } else {
                             //assert msg.BasicProperties.CorrelationId == basicProperties.CorrelationId
+                            Debug.WriteLine("Got a reply!");
                             return new RabbitMQMessage {
                                     BasicProperties = msg.BasicProperties,
                                     Body = msg.Body
                                 };
                         }
-                        Debug.WriteLine("HELLO");
                     }
-                    Debug.WriteLine("GOODBYE");
+                    Debug.WriteLine("Timeout");
                     // TODO: log timeout
                     throw new QueueTimeoutException();
                 }
