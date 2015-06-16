@@ -25,7 +25,6 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
             // AskToStop(thread);
             //thread.Join();
         }
-
         public void Main() {
             var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-web-service-caller", Password = "isa-web-service-caller" };
             using (var connection = factory.CreateConnection()) {
@@ -41,40 +40,53 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                     channel.QueueBind(queue.QueueName, Constants.WebServiceAdapterExchange, "", new Dictionary<String, Object>());
                     var consumer = new QueueingBasicConsumer(channel);
                     channel.BasicConsume(queue.QueueName, false, consumer);
+                    // TODO: exit condition
+                    var tasks = new List<Task>();
                     while (true) {
                         var msg = consumer.Queue.Dequeue();
-                        var requestMsg = new RabbitMQMessage(msg.BasicProperties, msg.Body);
-                        var request = RabbitMQMessageToHttpWebRequest(requestMsg);
-
-                        // forward
-                        try {
-                            var response = CallWebService(request, channel, msg);
-                            var basicproperties = CreateResponseBasicProperties(200, "OK", response.Headers.AllKeys.ToDictionary(k => k, k => response.Headers[k]));
-                            basicproperties.CorrelationId = msg.BasicProperties.CorrelationId;
-                            var buffer = new byte[response.ContentLength];
-                            if (response.ContentLength > 0) {
-                                var responseStream = response.GetResponseStream();
-                                responseStream.Read(buffer, 0, buffer.Length);
-                                responseStream.Close();
-                            }
-                            channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicproperties, buffer);
-                        } catch (WebException ex) {
-                            IBasicProperties basicProperties;
-                            byte[] body = null;
-                            if (ex.Response != null) {
-                                basicProperties = CreateResponseBasicProperties((int)(ex.Response as HttpWebResponse).StatusCode, (ex.Response as HttpWebResponse).StatusDescription, ex.Response.Headers.AllKeys.ToDictionary(k => k, k => ex.Response.Headers[k]));
-                                body = new byte[ex.Response.ContentLength];
-                                ex.Response.GetResponseStream().Read(body, 0, (int)ex.Response.ContentLength);
-                            } else {
-                                basicProperties = CreateResponseBasicProperties((int)HttpStatusCode.ServiceUnavailable, "Service Unavailable", new Dictionary<string, string>());
-                            }
-                            basicProperties.CorrelationId = msg.BasicProperties.CorrelationId;
-                            channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body ?? new byte[0]);
+                        tasks.Add(Task.Factory.StartNew(() => { HandleMessage(msg, connection.CreateModel()); }));
+                        channel.BasicAck(msg.DeliveryTag, false);
+                        if (tasks.Count >= 50) {
+                            var finished = Task.WaitAny(tasks.ToArray());
+                            tasks.RemoveAt(finished);
                         }
                     }
+                    
                 }
             }
         }
+
+        private void HandleMessage(Client.Events.BasicDeliverEventArgs msg, IModel channel) {
+            var requestMsg = new RabbitMQMessage(msg.BasicProperties, msg.Body);
+            var request = RabbitMQMessageToHttpWebRequest(requestMsg);
+
+            // forward
+            try {
+                var response = CallWebService(request, channel, msg);
+                var basicproperties = CreateResponseBasicProperties(200, "OK", response.Headers.AllKeys.ToDictionary(k => k, k => response.Headers[k]));
+                basicproperties.CorrelationId = msg.BasicProperties.CorrelationId;
+                var buffer = new byte[response.ContentLength];
+                if (response.ContentLength > 0) {
+                    var responseStream = response.GetResponseStream();
+                    responseStream.Read(buffer, 0, buffer.Length);
+                    responseStream.Close();
+                }
+                channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicproperties, buffer);
+            } catch (WebException ex) {
+                IBasicProperties basicProperties;
+                byte[] body = null;
+                if (ex.Response != null) {
+                    basicProperties = CreateResponseBasicProperties((int)(ex.Response as HttpWebResponse).StatusCode, (ex.Response as HttpWebResponse).StatusDescription, ex.Response.Headers.AllKeys.ToDictionary(k => k, k => ex.Response.Headers[k]));
+                    body = new byte[ex.Response.ContentLength];
+                    ex.Response.GetResponseStream().Read(body, 0, (int)ex.Response.ContentLength);
+                } else {
+                    basicProperties = CreateResponseBasicProperties((int)HttpStatusCode.ServiceUnavailable, "Service Unavailable", new Dictionary<string, string>());
+                }
+                basicProperties.CorrelationId = msg.BasicProperties.CorrelationId;
+                channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body ?? new byte[0]);
+            }
+        }
+    
         private static WebResponse CallWebService(HttpWebRequest request, IModel channel, Client.Events.BasicDeliverEventArgs msg) {
             if ((bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated]) {
                 var authQueue = channel.QueueDeclare();
@@ -135,6 +147,9 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
         {
             foreach (var kvp in httpHeaders)
             {
+                if (kvp.Key == "Authorization") {
+                    continue;
+                }
                 if (Constants.HttpRestrictedHeaders.Contains(kvp.Key))
                 {
                     continue;
