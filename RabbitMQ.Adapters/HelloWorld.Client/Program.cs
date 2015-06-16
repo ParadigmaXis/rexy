@@ -12,6 +12,7 @@ namespace HelloWorld.Client {
             for (int i = 0; i < 20; i++) {
                 tasks.Add(Task.Factory.StartNew(RunIt));
             }
+            Console.WriteLine("All Running {0}", DateTime.UtcNow - start);
             Task.WaitAll(tasks.ToArray());
             Console.WriteLine("All DONE {0}", DateTime.UtcNow - start);
             Console.ReadKey();
@@ -23,7 +24,7 @@ namespace HelloWorld.Client {
             client.ClientCredentials.Windows.AllowedImpersonationLevel = System.Security.Principal.TokenImpersonationLevel.Impersonation;
             client.ClientCredentials.Windows.ClientCredential = System.Net.CredentialCache.DefaultNetworkCredentials;
             var txt = client.HelloWorld("Hello??");
-            Console.WriteLine("DONE {0}: {1}", txt, DateTime.UtcNow - start);
+            Console.WriteLine("DONE {0}: {1} {2}", txt, start, DateTime.UtcNow - start);
         }
     }
 }
