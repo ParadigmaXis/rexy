@@ -28,7 +28,6 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
 
         public void Main() {
             var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-web-service-caller", Password = "isa-web-service-caller" };
-            //var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-http-handler", Password = "isa-http-handler" };
             using (var connection = factory.CreateConnection()) {
                 using (var channel = connection.CreateModel()) {
                     channel.BasicAcks += (sender, e) => Debug.WriteLine(string.Format("WSCS::ACK {0} {1}", e.DeliveryTag, e.Multiple));
