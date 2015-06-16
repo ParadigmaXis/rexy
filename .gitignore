@@ -10,3 +10,5 @@ RabbitMQ.Adapters/RabbitMQ.Adapters.WebServiceCaller/bin/
 *.suo
 RabbitMQ.Adapters/RabbitMQ.Adapters.Common/bin/
 RabbitMQ.Adapters/RabbitMQ.Adapters.Common/obj/
+RabbitMQ.Adapters/HelloWorld.Client/bin/
+RabbitMQ.Adapters/HelloWorld.Client/obj/
