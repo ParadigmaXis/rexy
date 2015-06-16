@@ -15,6 +15,7 @@ namespace HelloWorld.Services {
 
         [WebMethod]
         public string HelloWorld(string message) {
+            System.Threading.Thread.Sleep(5000);
             string userName = Context.Request.IsAuthenticated ? Context.Request.LogonUserIdentity.Name : "<anonymous>";
             if (message == null) {
                 return "Hello to " + userName + " with null argument!";
