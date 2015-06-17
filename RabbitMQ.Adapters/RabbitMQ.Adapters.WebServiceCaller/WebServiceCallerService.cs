@@ -12,6 +12,65 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace RabbitMQ.Adapters.WebServiceCaller {
+    internal interface IRabbitMQAuthenticator { }
+    internal class RabbitMQWindowsAuthenticator : IRabbitMQAuthenticator, IDisposable
+    {
+        IModel channel = null;
+        QueueDeclareOk authQueue = null;
+        string replyTo = null;
+        Microsoft.Samples.Security.SSPI.ServerContext serverContext = null;
+
+        public RabbitMQWindowsAuthenticator(IModel channel, string replyTo)
+        {
+            this.channel = channel;
+            this.authQueue = this.channel.QueueDeclare();
+            this.replyTo = replyTo;
+        }
+
+        public void Authenticate(HttpWebRequest request)
+        {
+            var consumer = new QueueingBasicConsumer(this.channel);
+            this.channel.BasicConsume(this.authQueue.QueueName, true, consumer);
+            var receiver = new WindowsAuthenticationReceiver(
+                (basicProperties, body) => { this.channel.BasicPublish("", this.replyTo, basicProperties, body); },
+                (arg0) => { this.serverContext = arg0; }
+                );
+            receiver.RequestAuthentication(this.authQueue.QueueName);
+            while (this.serverContext == null)
+            {
+                Client.Events.BasicDeliverEventArgs authReply;
+                if (consumer.Queue.Dequeue(600000, out authReply))
+                {
+                    if (receiver.IsAuthenticationMessage(authReply))
+                    {
+                        receiver.HandleAuthenticationMessage(this.authQueue.QueueName, authReply);
+                    }
+                    else
+                    {
+                        throw new Exception();
+                    }
+                }
+                else
+                {
+                    throw new Exception();
+                }
+            }
+            this.serverContext.ImpersonateClient();
+            request.Credentials = CredentialCache.DefaultNetworkCredentials;
+        }
+
+        public void Dispose()
+        {
+            if (this.serverContext != null) { 
+                this.serverContext.RevertImpersonation();
+                this.serverContext.Dispose();
+            }
+            if (this.channel != null && authQueue != null) {
+                this.channel.QueueDelete(authQueue.QueueName);
+            }
+        }
+    }
+
     public partial class WebServiceCallerService : ServiceBase {
         public WebServiceCallerService() {
             InitializeComponent();
@@ -62,7 +121,18 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
 
             // forward
             try {
-                var response = CallWebService(request, channel, msg);
+                WebResponse response = null;
+                if ((bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated])
+                {
+                    using (var authenticator = new RabbitMQWindowsAuthenticator(channel, msg.BasicProperties.ReplyTo))
+                    {
+                        authenticator.Authenticate(request);
+                        response = request.GetResponse();
+                    }
+                } else
+                {
+                    response = request.GetResponse();
+                }
                 var basicproperties = CreateResponseBasicProperties(200, "OK", response.Headers.AllKeys.ToDictionary(k => k, k => response.Headers[k]));
                 basicproperties.CorrelationId = msg.BasicProperties.CorrelationId;
                 var buffer = new byte[response.ContentLength];
@@ -87,44 +157,6 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
             }
         }
     
-        private static WebResponse CallWebService(HttpWebRequest request, IModel channel, Client.Events.BasicDeliverEventArgs msg) {
-            if ((bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated]) {
-                var authQueue = channel.QueueDeclare();
-                try {
-                    var consumer = new QueueingBasicConsumer(channel);
-                    channel.BasicConsume(authQueue.QueueName, true, consumer);
-                    Microsoft.Samples.Security.SSPI.ServerContext serverContext = null;
-                    var receiver = new WindowsAuthenticationReceiver(
-                        (basicProperties, body) => { channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body); },
-                        (arg0) => { serverContext = arg0; }
-                        );
-                    receiver.RequestAuthentication(authQueue.QueueName);
-                    while (serverContext == null) {
-                        Client.Events.BasicDeliverEventArgs authReply;
-                        if (consumer.Queue.Dequeue(600000, out authReply)) {
-                            if (receiver.IsAuthenticationMessage(authReply)) {
-                                receiver.HandleAuthenticationMessage(authQueue.QueueName, authReply);
-                            } else {
-                                throw new Exception();
-                            }
-                        } else {
-                            throw new Exception();
-                        }
-                    }
-                    try {
-                        serverContext.ImpersonateClient();
-                        request.Credentials = CredentialCache.DefaultNetworkCredentials;
-                        return request.GetResponse();
-                    } finally {
-                        serverContext.RevertImpersonation();
-                        serverContext.Dispose();
-                    }
-                } finally {
-                    channel.QueueDelete(authQueue.QueueName);
-                }
-            }
-            return request.GetResponse();
-        }
         private static HttpWebRequest RabbitMQMessageToHttpWebRequest(RabbitMQMessage msg)
         {
             //var gatewayUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestGatewayUrl]);
