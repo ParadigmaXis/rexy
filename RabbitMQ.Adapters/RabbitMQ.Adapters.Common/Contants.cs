@@ -5,10 +5,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace RabbitMQ.Adapters.Common
-{
-    public static class Constants
-    {
+namespace RabbitMQ.Adapters.Common {
+    public static class Constants {
         public static String[] HttpRestrictedHeaders { get { return new String[] { "Connection", "Content-Length", "Date", "Expect", "Host", "If-Modified-Since", "Range", "Transfer-Encoding", "Proxy-Connection" }; } }
         public static String[] HttpRestrictedHeadersViaProperty { get { return new String[] { "Accept", "Content-Type", "Referer", "User-Agent" }; } }
         public static IEnumerable<String> ExceptHttpRestrictedHeaders(this IEnumerable<String> self) {

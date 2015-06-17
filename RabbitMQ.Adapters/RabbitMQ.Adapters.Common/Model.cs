@@ -4,13 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 
-namespace RabbitMQ.Adapters.Common
-{
-    public class RabbitMQMessage
-    {
+namespace RabbitMQ.Adapters.Common {
+    public class RabbitMQMessage {
         public RabbitMQMessage() { }
-        public RabbitMQMessage(IBasicProperties basicProperties, byte[] body)
-        {
+        public RabbitMQMessage(IBasicProperties basicProperties, byte[] body) {
             this.BasicProperties = basicProperties;
             this.Body = body;
         }

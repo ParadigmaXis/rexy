@@ -6,11 +6,10 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace RabbitMQ.Adapters.WebServiceCaller
-{
-    static class Program
-    {
+namespace RabbitMQ.Adapters.WebServiceCaller {
+    static class Program {
         public static readonly String SERVICE_NAME = "WebServiceCallerService";
+
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
@@ -33,9 +32,11 @@ namespace RabbitMQ.Adapters.WebServiceCaller
                 RunService();
             }
         }
+
         static void RunConsole() {
             new WebServiceCallerService().Main();
         }
+
         static void RunService() {
             ServiceBase[] ServicesToRun;
             ServicesToRun = new ServiceBase[]
@@ -44,6 +45,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller
             };
             ServiceBase.Run(ServicesToRun);
         }
+
         static void Install() {
             try {
                 InstallService();
@@ -52,10 +54,12 @@ namespace RabbitMQ.Adapters.WebServiceCaller
                 Console.WriteLine(ex);
             }
         }
+
         static void Uninstall() {
             StopService();
             UninstallService();
         }
+
         private static bool IsInstalled() {
             using (ServiceController controller =
                 new ServiceController(SERVICE_NAME)) {
@@ -67,6 +71,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller
                 return true;
             }
         }
+
         private static bool IsRunning() {
             using (ServiceController controller =
                 new ServiceController(SERVICE_NAME)) {
@@ -74,12 +79,14 @@ namespace RabbitMQ.Adapters.WebServiceCaller
                 return (controller.Status == ServiceControllerStatus.Running);
             }
         }
+
         private static AssemblyInstaller GetInstaller() {
             AssemblyInstaller installer = new AssemblyInstaller(
                 typeof(Program).Assembly, null);
             installer.UseNewContext = true;
             return installer;
         }
+
         private static void InstallService() {
             if (IsInstalled()) return;
 
@@ -133,6 +140,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller
                 }
             }
         }
+
         private static void StopService() {
             if (!IsInstalled()) return;
             using (ServiceController controller =

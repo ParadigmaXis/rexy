@@ -7,12 +7,15 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
 namespace RabbitMQ.Adapters.Common {
-    public class WindowsAuthenticationReceiver: WindowsAuthenticationProtocol {
+    public class WindowsAuthenticationReceiver : WindowsAuthenticationProtocol {
+
         private readonly Action<Microsoft.Samples.Security.SSPI.ServerContext> Authenticated;
         private Microsoft.Samples.Security.SSPI.ServerContext serverContext = null;
-        public WindowsAuthenticationReceiver(Action<RabbitMQ.Client.IBasicProperties, byte[]> sendMessage, Action<Microsoft.Samples.Security.SSPI.ServerContext> authenticated): base(sendMessage) {
+
+        public WindowsAuthenticationReceiver(Action<RabbitMQ.Client.IBasicProperties, byte[]> sendMessage, Action<Microsoft.Samples.Security.SSPI.ServerContext> authenticated) : base(sendMessage) {
             Authenticated = authenticated;
         }
+
         public void RequestAuthentication(string queueName) {
             var basicProperties = new RabbitMQ.Client.Framing.BasicProperties() {
                 Headers = new Dictionary<string, object>()
@@ -23,6 +26,7 @@ namespace RabbitMQ.Adapters.Common {
             basicProperties.Type = Constants.SoapAuthMessagetype;
             SendMessage(basicProperties, new byte[0]);
         }
+
         public override void HandleAuthenticationMessage(string queueName, BasicDeliverEventArgs e) {
             if (!bool.Parse(Constants.GetUTF8String(e.BasicProperties.Headers["SSPI-ContinueProcessing"]))) {
                 Authenticated(serverContext);

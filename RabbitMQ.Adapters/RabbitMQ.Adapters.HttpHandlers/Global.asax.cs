@@ -9,7 +9,6 @@ using System.Web.SessionState;
 
 namespace RabbitMQ.Adapters.HttpHandlers {
     public class Global : System.Web.HttpApplication {
-        
 
         protected void Application_Start(object sender, EventArgs e) {
             using (var thisVariableForcesTheLoadingOfTheAssembly = new Microsoft.Samples.Security.SSPI.ClientContext(new Microsoft.Samples.Security.SSPI.ClientCredential(Microsoft.Samples.Security.SSPI.Credential.Package.Negotiate), "", Microsoft.Samples.Security.SSPI.ClientContext.ContextAttributeFlags.Delegate)) {
@@ -24,28 +23,17 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 }
             }
         }
-        protected void Session_Start(object sender, EventArgs e) {
 
-        }
+        protected void Session_Start(object sender, EventArgs e) {}
 
-        protected void Application_BeginRequest(object sender, EventArgs e) {
+        protected void Application_BeginRequest(object sender, EventArgs e) {}
 
-        }
+        protected void Application_AuthenticateRequest(object sender, EventArgs e) {}
 
-        protected void Application_AuthenticateRequest(object sender, EventArgs e) {
+        protected void Application_Error(object sender, EventArgs e) {}
 
-        }
+        protected void Session_End(object sender, EventArgs e) {}
 
-        protected void Application_Error(object sender, EventArgs e) {
-
-        }
-
-        protected void Session_End(object sender, EventArgs e) {
-
-        }
-
-        protected void Application_End(object sender, EventArgs e) {
-
-        }
+        protected void Application_End(object sender, EventArgs e) {}
     }
 }

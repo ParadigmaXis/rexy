@@ -15,7 +15,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
 
     class QueueTimeoutException : Exception { }
 
-    public class ReverseProxyHttpHandler: IHttpHandler {
+    public class ReverseProxyHttpHandler : IHttpHandler {
         bool IHttpHandler.IsReusable {
             get { return true; }
         }
@@ -28,7 +28,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 url.Query = context.Request.Url.Query.Substring(1);
             }
             System.Diagnostics.EventLog.WriteEntry("ASP.NET 4.0.30319.0", String.Format("Redirect {0} to {1}{2}", context.Request.Url, url, context.Request.IsAuthenticated ? " with authentication" : ""));
-            
+
             try {
                 //// prepare request forwarding
                 //var request = (HttpWebRequest)WebRequest.Create(url.Uri);
@@ -112,8 +112,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 var basicProperties = HttpRequestToRabbitMQBasicProperties(context.Request);
                 var body = GetRequestBuffer(context.Request);
                 var requestMsg = new RabbitMQMessage(basicProperties, body);
-                try
-                {
+                try {
                     if (context.Request.IsAuthenticated) {
                         using (var impersonation = context.Request.LogonUserIdentity.Impersonate()) {
                             var responseMsg = PostAndWait(requestMsg);
@@ -123,19 +122,14 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                         var responseMsg = PostAndWait(requestMsg);
                         RabbitMQMessageToHttpResponse(responseMsg, context.Response);
                     }
-                }
-                catch (QueueTimeoutException ex)
-                {
+                } catch (QueueTimeoutException ex) {
                     throw new HttpException(504, "Gateway Timeout");
                 }
-            }
-            catch (WebException ex)
-            {
+            } catch (WebException ex) {
                 if (ex.Response != null) {
                     context.Response.StatusCode = (int)(ex.Response as HttpWebResponse).StatusCode;
                     context.Response.StatusDescription = (ex.Response as HttpWebResponse).StatusDescription;
-                }
-                else {
+                } else {
                     context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 }
                 context.Response.End();
@@ -143,13 +137,11 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             }
         }
 
-        private IBasicProperties HttpRequestToRabbitMQBasicProperties(HttpRequest request)
-        {
+        private IBasicProperties HttpRequestToRabbitMQBasicProperties(HttpRequest request) {
             return CreateRequestBasicProperties(request.HttpMethod, request.Url, new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx"), ExtracthttpRequestHeaders(request), request.IsAuthenticated);
         }
 
-        internal IBasicProperties CreateRequestBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated)
-        {
+        internal IBasicProperties CreateRequestBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated) {
             var result = new RabbitMQ.Client.Framing.BasicProperties() {
                 Headers = new Dictionary<string, object>()
             };
@@ -162,21 +154,15 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             return result;
         }
 
-        private Dictionary<string, string> ExtracthttpRequestHeaders(HttpRequest request)
-        {
+        private Dictionary<string, string> ExtracthttpRequestHeaders(HttpRequest request) {
             return request.Headers.AllKeys.ToDictionary(k => k, k => request.Headers[k]);
         }
 
-        private void RabbitMQMessageToHttpResponse(RabbitMQMessage msg, HttpResponse response)
-        {
-            foreach (var kvp in msg.BasicProperties.GetHttpHeaders())
-            {
-                if ("Content-Type".Equals(kvp.Key))
-                {
+        private void RabbitMQMessageToHttpResponse(RabbitMQMessage msg, HttpResponse response) {
+            foreach (var kvp in msg.BasicProperties.GetHttpHeaders()) {
+                if ("Content-Type".Equals(kvp.Key)) {
                     response.ContentType = kvp.Value;
-                }
-                else
-                {
+                } else {
                     response.Headers.Add(kvp.Key, kvp.Value);
                 }
             }
@@ -184,15 +170,14 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 response.StatusCode = (int)msg.BasicProperties.Headers[Constants.ResponseStatusCode];
                 response.StatusDescription = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.ResponseStatusDescription]);
             }
-            if (msg.Body.Length > 0)
-            {
+            if (msg.Body.Length > 0) {
                 var outStream = response.OutputStream;
                 outStream.Write(msg.Body, 0, msg.Body.Length);
                 outStream.Close();
             }
             return;
         }
-       
+
         private RabbitMQMessage PostAndWait(RabbitMQMessage requestMsg) {
             var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-http-handler", Password = "isa-http-handler" };
             using (var connection = factory.CreateConnection()) {
@@ -223,9 +208,9 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                             //assert msg.BasicProperties.CorrelationId == basicProperties.CorrelationId
                             Debug.WriteLine("Got a reply!");
                             return new RabbitMQMessage {
-                                    BasicProperties = msg.BasicProperties,
-                                    Body = msg.Body
-                                };
+                                BasicProperties = msg.BasicProperties,
+                                Body = msg.Body
+                            };
                         }
                     }
                     Debug.WriteLine("Timeout");
