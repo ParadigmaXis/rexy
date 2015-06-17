@@ -12,8 +12,16 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace RabbitMQ.Adapters.WebServiceCaller {
-    internal interface IRabbitMQAuthenticator { }
-    internal class RabbitMQWindowsAuthenticator : IRabbitMQAuthenticator, IDisposable {
+    internal interface IRabbitMQAuthenticator : IDisposable {
+        void Authenticate(HttpWebRequest request);
+    }
+
+    internal class RabbitMQAnonimousAuthenticator : IRabbitMQAuthenticator {
+        public void Authenticate(HttpWebRequest request) { }
+        public void Dispose() { }
+    }
+
+    internal class RabbitMQWindowsAuthenticator : IRabbitMQAuthenticator {
         IModel channel = null;
         QueueDeclareOk authQueue = null;
         string replyTo = null;
@@ -94,58 +102,67 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                     var tasks = new List<Task>();
                     while (true) {
                         var msg = consumer.Queue.Dequeue();
-                        tasks.Add(Task.Factory.StartNew(() => { HandleMessage(msg, connection.CreateModel()); }));
+                        tasks.Add(Task.Factory.StartNew(() => { HandleRabbitMQRequestMessage(msg, connection.CreateModel()); }));
                         channel.BasicAck(msg.DeliveryTag, false);
                         if (tasks.Count >= 50) {
                             var finished = Task.WaitAny(tasks.ToArray());
                             tasks.RemoveAt(finished);
                         }
                     }
-
                 }
             }
         }
 
-        private void HandleMessage(Client.Events.BasicDeliverEventArgs msg, IModel channel) {
+        private void HandleRabbitMQRequestMessage(Client.Events.BasicDeliverEventArgs msg, IModel channel) {
             var requestMsg = new RabbitMQMessage(msg.BasicProperties, msg.Body);
-            var request = RabbitMQMessageToHttpWebRequest(requestMsg);
+            var request = RabbitMQMessageToHttpRequest(requestMsg);
 
-            // forward
+            var requestIsAuthenticated = (bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated];
+            var routingKey = msg.BasicProperties.ReplyTo;
+            var correlationId = msg.BasicProperties.CorrelationId;
+
+            var response = CallWebservice(request, () => {
+                if (requestIsAuthenticated) {
+                    return new RabbitMQWindowsAuthenticator(channel, routingKey);
+                }else {
+                    return new RabbitMQAnonimousAuthenticator();
+                }
+            });
+            var responseMsg = HttpResponseToRabbitMQMessage(response);
+            responseMsg.BasicProperties.CorrelationId = correlationId;
+            channel.BasicPublish("", routingKey, responseMsg.BasicProperties, responseMsg.Body);
+        }
+
+        private HttpWebResponse CallWebservice(HttpWebRequest request, Func<IRabbitMQAuthenticator> GetAuthenticator) {
+            WebResponse response = null;
             try {
-                WebResponse response = null;
-                if ((bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated]) {
-                    using (var authenticator = new RabbitMQWindowsAuthenticator(channel, msg.BasicProperties.ReplyTo)) {
-                        authenticator.Authenticate(request);
-                        response = request.GetResponse();
-                    }
-                } else {
+                using (var authenticator = GetAuthenticator()) {
+                    authenticator.Authenticate(request);
                     response = request.GetResponse();
                 }
-                var basicproperties = CreateResponseBasicProperties(200, "OK", response.Headers.AllKeys.ToDictionary(k => k, k => response.Headers[k]));
-                basicproperties.CorrelationId = msg.BasicProperties.CorrelationId;
-                var buffer = new byte[response.ContentLength];
-                if (response.ContentLength > 0) {
-                    var responseStream = response.GetResponseStream();
-                    responseStream.Read(buffer, 0, buffer.Length);
-                    responseStream.Close();
-                }
-                channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicproperties, buffer);
             } catch (WebException ex) {
-                IBasicProperties basicProperties;
-                byte[] body = null;
                 if (ex.Response != null) {
-                    basicProperties = CreateResponseBasicProperties((int)(ex.Response as HttpWebResponse).StatusCode, (ex.Response as HttpWebResponse).StatusDescription, ex.Response.Headers.AllKeys.ToDictionary(k => k, k => ex.Response.Headers[k]));
-                    body = new byte[ex.Response.ContentLength];
-                    ex.Response.GetResponseStream().Read(body, 0, (int)ex.Response.ContentLength);
+                    response = ex.Response;
                 } else {
-                    basicProperties = CreateResponseBasicProperties((int)HttpStatusCode.ServiceUnavailable, "Service Unavailable", new Dictionary<string, string>());
+                    response = null;
                 }
-                basicProperties.CorrelationId = msg.BasicProperties.CorrelationId;
-                channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body ?? new byte[0]);
             }
+            return (HttpWebResponse)response;
         }
 
-        private static HttpWebRequest RabbitMQMessageToHttpWebRequest(RabbitMQMessage msg) {
+        private RabbitMQMessage HttpResponseToRabbitMQMessage(HttpWebResponse response) {
+            var responseMsg = new RabbitMQMessage();
+            if (response != null) { 
+                responseMsg.BasicProperties = CreateResponseBasicProperties((int)(response).StatusCode, response.StatusDescription, response.Headers.AllKeys.ToDictionary(k => k, k => response.Headers[k]));
+                responseMsg.Body = response.GetResponseBytes();
+            } else {
+                responseMsg.BasicProperties = CreateResponseBasicProperties((int)HttpStatusCode.ServiceUnavailable, "Service Unavailable", new Dictionary<string, string>());
+                responseMsg.Body = new byte[0];
+            }
+            return responseMsg;
+        }
+
+        private static HttpWebRequest RabbitMQMessageToHttpRequest(RabbitMQMessage msg) {
             //var gatewayUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestGatewayUrl]);
             var destinationUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestDestinationUrl]);
             var request = (HttpWebRequest)WebRequest.Create(destinationUrl);

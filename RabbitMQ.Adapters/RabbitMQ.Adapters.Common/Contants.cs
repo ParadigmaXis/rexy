@@ -2,8 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace RabbitMQ.Adapters.Common {
     public static class Constants {
@@ -12,8 +14,29 @@ namespace RabbitMQ.Adapters.Common {
         public static IEnumerable<String> ExceptHttpRestrictedHeaders(this IEnumerable<String> self) {
             return self.Except(HttpRestrictedHeaders).Except(HttpRestrictedHeadersViaProperty);
         }
+
         public static IDictionary<String, String> GetHttpHeaders(this IBasicProperties basicProperties) {
             return basicProperties.Headers.Where(kvp => kvp.Key.StartsWith(HttpHeaderPrefix)).ToDictionary(kvp => kvp.Key.Substring(HttpHeaderPrefix.Length), kvp => GetUTF8String(kvp.Value));
+        }
+
+        public static byte[] GetResponseBytes(this WebResponse response) {
+            var buffer = new byte[response.ContentLength];
+            if (response.ContentLength > 0) {
+                var responseStream = response.GetResponseStream();
+                responseStream.Read(buffer, 0, buffer.Length);
+                responseStream.Close();
+            }
+            return buffer;
+        }
+
+        public static byte[] GetRequestBytes(this HttpRequest request) {
+            var buffer = new byte[request.ContentLength];
+            if (request.ContentLength > 0) {
+                var inStream = request.GetBufferedInputStream();
+                inStream.Read(buffer, 0, request.ContentLength);
+                inStream.Close();
+            }
+            return buffer;
         }
 
         public const String HttpHeaderPrefix = "http-";

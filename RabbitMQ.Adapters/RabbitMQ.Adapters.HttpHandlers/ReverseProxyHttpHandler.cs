@@ -110,7 +110,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 //}
 
                 var basicProperties = HttpRequestToRabbitMQBasicProperties(context.Request);
-                var body = GetRequestBuffer(context.Request);
+                var body = context.Request.GetRequestBytes();
                 var requestMsg = new RabbitMQMessage(basicProperties, body);
                 try {
                     if (context.Request.IsAuthenticated) {
@@ -218,16 +218,6 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                     throw new QueueTimeoutException();
                 }
             }
-        }
-
-        private byte[] GetRequestBuffer(HttpRequest request) {
-            if (request.ContentLength == 0) {
-                return new byte[0];
-            }
-            var inStream = request.GetBufferedInputStream();
-            var buffer = new byte[request.ContentLength];
-            inStream.Read(buffer, 0, request.ContentLength);
-            return buffer;
         }
     }
 }
