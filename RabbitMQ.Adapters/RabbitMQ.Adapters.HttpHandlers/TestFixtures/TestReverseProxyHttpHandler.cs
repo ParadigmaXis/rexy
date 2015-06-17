@@ -3,13 +3,7 @@ using RabbitMQ.Adapters.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Net;
 using System.Security.Principal;
-using System.Text;
-using System.Threading.Tasks;
-using System.Web;
-using System.Web.Hosting;
 
 namespace RabbitMQ.Adapters.HttpHandlers.TestFixtures {
     [TestFixture]

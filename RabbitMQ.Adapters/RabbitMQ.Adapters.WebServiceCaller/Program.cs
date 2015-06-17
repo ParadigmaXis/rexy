@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration.Install;
-using System.Linq;
 using System.ServiceProcess;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RabbitMQ.Adapters.WebServiceCaller {
     static class Program {

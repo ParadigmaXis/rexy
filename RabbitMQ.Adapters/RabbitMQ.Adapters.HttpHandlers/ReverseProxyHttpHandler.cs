@@ -6,9 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Web;
-using System.Xml;
-using System.Xml.Linq;
-using System.Security.Principal;
 using System.Diagnostics;
 
 namespace RabbitMQ.Adapters.HttpHandlers {
