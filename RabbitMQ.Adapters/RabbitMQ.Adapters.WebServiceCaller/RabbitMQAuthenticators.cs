@@ -55,7 +55,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                 this.serverContext.Dispose();
             }
 
-            if (this.channel != null && authQueue != null) {
+            if (this.channel != null && channel.IsOpen && authQueue != null) {
                 this.channel.QueueDelete(authQueue.QueueName);
             }
         }
