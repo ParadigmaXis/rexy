@@ -105,16 +105,13 @@ namespace RabbitMQ.Adapters.HttpHandlers {
 
                     using (var ms = new MemoryStream()) {
                         if (isGzipCompressed) {
-                            document.Save(ms);
-                            responseMsg.Body = ms.ToArray();
-                            responseMsg.BasicProperties.Headers.Remove("http-Content-Encoding");
-                            //using (var outms = new MemoryStream()) {
-                            //    document.Save(ms);
-                            //    using (var zipStream = new GZipStream(outms, CompressionMode.Compress, false)) {
-                            //        zipStream.Write(ms.ToArray(), 0, (int)ms.Length);
-                            //        responseMsg.Body = outms.ToArray();
-                            //    }
-                            //}
+                            using (var outms = new MemoryStream()) {
+                                document.Save(ms);
+                                using (var zipStream = new GZipStream(outms, CompressionMode.Compress, false)) {
+                                    zipStream.Write(ms.ToArray(), 0, (int)ms.Length);
+                                }
+                                responseMsg.Body = outms.ToArray();
+                            }
                         } else {
                             document.Save(ms);
                             responseMsg.Body = ms.ToArray();
