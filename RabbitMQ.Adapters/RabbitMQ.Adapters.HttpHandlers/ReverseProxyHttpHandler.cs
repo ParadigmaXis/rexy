@@ -7,6 +7,10 @@ using System.Linq;
 using System.Net;
 using System.Web;
 using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.IO.Compression;
+using System.Xml;
 
 namespace RabbitMQ.Adapters.HttpHandlers {
 
@@ -27,97 +31,13 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             System.Diagnostics.EventLog.WriteEntry("ASP.NET 4.0.30319.0", String.Format("Redirect {0} to {1}{2}", context.Request.Url, url, context.Request.IsAuthenticated ? " with authentication" : ""));
 
             try {
-                //// prepare request forwarding
-                //var request = (HttpWebRequest)WebRequest.Create(url.Uri);
-
-                //request.Method = context.Request.HttpMethod;
-                //if (context.Request.AcceptTypes != null) {
-                //    request.Accept = String.Join(", ", context.Request.AcceptTypes);
-                //}
-                //request.ContentType = context.Request.ContentType;
-                //request.UserAgent = context.Request.UserAgent;
-                //request.ContentLength = context.Request.ContentLength;
-
-                //foreach (var key in context.Request.Headers.AllKeys.ExceptHttpRestrictedHeaders()) {
-                //    request.Headers.Add(key, context.Request.Headers[key]);
-                //}
-                //if (context.Request.ContentLength > 0) {
-                //    var buffer = GetRequestBuffer(context);
-
-                //    var outStream = request.GetRequestStream();
-                //    outStream.Write(buffer, 0, context.Request.ContentLength);
-                //    outStream.Close();
-                //}
-                //Func<WebResponse> CallWebService = () => {
-                //    if (context.Request.IsAuthenticated) {
-                //        using (var impersonationContext = context.Request.LogonUserIdentity.Impersonate()) {
-                //            request.Credentials = CredentialCache.DefaultNetworkCredentials;
-                //            return request.GetResponse();
-                //        }
-                //    }
-                //    return request.GetResponse();
-                //};
-                //// forward
-                //var response = CallWebService();
-
-                ////foreach (var key in response.Headers.AllKeys.ExceptHttpRestrictedHeaders()) {
-                ////    System.Diagnostics.EventLog.WriteEntry("ASP.NET 4.0.30319.0", String.Format("Setting Header[{0}] to {1}", key, response.Headers[key]));
-                ////    context.Response.Headers.Add(key, response.Headers[key]);
-                ////}
-                //context.Response.ContentType = response.ContentType;
-                //if (response.ContentLength > 0) {
-                //    var inStream = response.GetResponseStream();
-                //    var buffer = new byte[response.ContentLength];
-                //    inStream.Read(buffer, 0, (int)response.ContentLength);
-                //    try {
-                //        var document = new XmlDocument();
-                //        document.Load(new System.IO.MemoryStream(buffer, 0, buffer.Length));
-                //        if (document.DocumentElement.NamespaceURI == "http://schemas.xmlsoap.org/wsdl/" && document.DocumentElement.LocalName == "definitions") {
-                //            var nsmgr = new XmlNamespaceManager(new NameTable());
-                //            nsmgr.AddNamespace("wsdl", "http://schemas.xmlsoap.org/wsdl/");
-                //            nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/wsdl/soap/");
-                //            nsmgr.AddNamespace("soap12", "http://schemas.xmlsoap.org/wsdl/soap12/");
-                //            var nodes = document.DocumentElement.SelectNodes("/wsdl:definitions/wsdl:service/wsdl:port/soap:address", nsmgr);
-                //            var nodes12 = document.DocumentElement.SelectNodes("/wsdl:definitions/wsdl:service/wsdl:port/soap12:address", nsmgr);
-                //            foreach (var node in nodes.Cast<XmlElement>().Concat(nodes12.Cast<XmlElement>())) {
-                //                var attr = node.Attributes.GetNamedItem("location");
-                //                attr.Value = attr.Value.Replace(OUT_URL, IN_URL);
-                //            }
-                //            using (var ms = new System.IO.MemoryStream()) {
-                //                using (var writer = new System.IO.StreamWriter(ms, System.Text.Encoding.UTF8)) {
-                //                    document.Save(writer);
-                //                }
-                //                buffer = ms.ToArray();
-                //            }
-                //            nsmgr.AddNamespace("s", "http://www.w3.org/2001/XMLSchema");
-                //            var includes = document.DocumentElement.SelectNodes("/wsdl:definitions/s:schema/s:include", nsmgr);
-                //            var imports = document.DocumentElement.SelectNodes("/wsdl:definitions/s:schema/s:import", nsmgr);
-                //            foreach (var i in includes.Cast<XmlElement>().Concat(imports.Cast<XmlElement>())) {
-                //                var attr = i.Attributes.GetNamedItem("schemaLocation");
-                //                attr.Value = attr.Value.Replace(OUT_URL, IN_URL);
-                //            }
-                //        }
-                //    } catch (Exception ex) {
-                //        // FIXME: log the exception somewhere
-                //        // response is not XML, so don't process it
-                //    }
-                //    var outStream = context.Response.OutputStream;
-                //    outStream.Write(buffer, 0, buffer.Length);
-                //    outStream.Close();
-                //}
-
-                var basicProperties = HttpRequestToRabbitMQBasicProperties(context.Request);
-                var body = context.Request.GetRequestBytes();
-                var requestMsg = new RabbitMQMessage(basicProperties, body);
                 try {
                     if (context.Request.IsAuthenticated) {
                         using (var impersonation = context.Request.LogonUserIdentity.Impersonate()) {
-                            var responseMsg = PostAndWait(requestMsg);
-                            RabbitMQMessageToHttpResponse(responseMsg, context.Response);
+                            GetResponse(context.Request, context.Response);
                         }
                     } else {
-                        var responseMsg = PostAndWait(requestMsg);
-                        RabbitMQMessageToHttpResponse(responseMsg, context.Response);
+                        GetResponse(context.Request, context.Response);
                     }
                 } catch (QueueTimeoutException ex) {
                     throw new HttpException(504, "Gateway Timeout");
@@ -131,6 +51,89 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 }
                 context.Response.End();
                 return;
+            }
+        }
+
+        private void GetResponse(HttpRequest request, HttpResponse response) {
+            var basicProperties = HttpRequestToRabbitMQBasicProperties(request);
+            var body = request.GetRequestBytes();
+            var requestMsg = new RabbitMQMessage(basicProperties, body);
+            var responseMsg = PostAndWait(requestMsg);
+            ReplaceBodyURLs(responseMsg,
+                GetDestinationURL("helloworld/HelloWorldService.asmx"),
+                GetProxyTargetURL(request, "helloworld/HelloWorldService.asmx"));
+            RabbitMQMessageToHttpResponse(responseMsg, response);
+        }
+
+        private Uri GetProxyTargetURL(HttpRequest request, string relativePath = "") {
+            return new Uri(new Uri(new Uri(request.Url.GetLeftPart(UriPartial.Authority)), request.ApplicationPath.TrimEnd('/') + "/"), relativePath);
+        }
+
+        private Uri GetDestinationURL(string targetProxyPath) {
+            //TODO: lookup in dictionary and return appropriate target URL
+            return new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx");
+        }
+
+        private void ReplaceBodyURLs(RabbitMQMessage responseMsg, Uri destinationUrl, Uri proxyTargetUrl) {
+            var isGzipCompressed =
+                responseMsg.BasicProperties.Headers.ContainsKey("http-Content-Encoding") &&
+                Constants.GetUTF8String((byte[])responseMsg.BasicProperties.Headers["http-Content-Encoding"]) == "gzip";
+            string body;
+            if (isGzipCompressed) {
+                body = Constants.GetZippedUTF8String(responseMsg.Body);
+            } else {
+                body = Constants.GetUTF8String(responseMsg.Body);
+            }
+
+            try {
+                var document = new XmlDocument();
+                //document.Load(new System.IO.MemoryStream(body, 0, body.Length));
+                document.LoadXml(body);
+                if (document.IsWsdl()) {
+                    var nsmgr = new XmlNamespaceManager(new NameTable());
+                    nsmgr.AddNamespace("wsdl", "http://schemas.xmlsoap.org/wsdl/");
+                    nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/wsdl/soap/");
+                    nsmgr.AddNamespace("soap12", "http://schemas.xmlsoap.org/wsdl/soap12/");
+                    var nodes = document.DocumentElement.SelectNodes("/wsdl:definitions/wsdl:service/wsdl:port/soap:address", nsmgr);
+                    var nodes12 = document.DocumentElement.SelectNodes("/wsdl:definitions/wsdl:service/wsdl:port/soap12:address", nsmgr);
+                    foreach (var node in nodes.Cast<XmlElement>().Concat(nodes12.Cast<XmlElement>())) {
+                        var attr = node.Attributes.GetNamedItem("location");
+                        attr.Value = attr.Value.Replace(destinationUrl.ToString(), proxyTargetUrl.ToString());
+                    }
+
+                    //document -> resposeMsg.Body
+
+                    using (var ms = new MemoryStream()) {
+                        if (isGzipCompressed) {
+                            document.Save(ms);
+                            responseMsg.Body = ms.ToArray();
+                            responseMsg.BasicProperties.Headers.Remove("http-Content-Encoding");
+                            //using (var outms = new MemoryStream()) {
+                            //    document.Save(ms);
+                            //    using (var zipStream = new GZipStream(outms, CompressionMode.Compress, false)) {
+                            //        zipStream.Write(ms.ToArray(), 0, (int)ms.Length);
+                            //        responseMsg.Body = outms.ToArray();
+                            //    }
+                            //}
+                        } else {
+                            document.Save(ms);
+                            responseMsg.Body = ms.ToArray();
+                        }
+                    }
+
+                    nsmgr.AddNamespace("s", "http://www.w3.org/2001/XMLSchema");
+                    var includes = document.DocumentElement.SelectNodes("/wsdl:definitions/s:schema/s:include", nsmgr);
+                    var imports = document.DocumentElement.SelectNodes("/wsdl:definitions/s:schema/s:import", nsmgr);
+                    foreach (var i in includes.Cast<XmlElement>().Concat(imports.Cast<XmlElement>())) {
+                        var attr = i.Attributes.GetNamedItem("schemaLocation");
+                        attr.Value = attr.Value.Replace(destinationUrl.ToString(), proxyTargetUrl.ToString());
+                    }
+                } else if (document.IsSoapMessage()) {
+                    //TODO: process soap messages. Remove soap envelope?
+                }
+            } catch (Exception ex) {
+                // FIXME: log the exception somewhere
+                // response is not XML, so don't process it
             }
         }
 

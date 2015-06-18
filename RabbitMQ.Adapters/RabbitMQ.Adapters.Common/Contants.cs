@@ -1,6 +1,8 @@
 ﻿using RabbitMQ.Client;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -57,11 +59,20 @@ namespace RabbitMQ.Adapters.Common {
         /// This method decodes byte[] as UTF8 Strings.
         /// </summary>
         /// <remarks>This is necessary because the RabbitMQ Client (and maybe AMQP?) does not dictate an encoding for strings used in header values.</remarks>
-        /// <param name="header"></param>
+        /// <param name="value"></param>
         /// <returns></returns>
-        public static String GetUTF8String(object header) {
-            if (header is string) return (string)header;
-            return System.Text.Encoding.UTF8.GetString((byte[])header);
+        public static string GetUTF8String(object value) {
+            if (value is string) return (string)value;
+            return System.Text.Encoding.UTF8.GetString((byte[])value);
+        }
+
+        public static string GetZippedUTF8String(byte[] value) {
+            string result;
+            using (GZipStream stream = new GZipStream(new MemoryStream(value), CompressionMode.Decompress)) {
+                StreamReader reader = new StreamReader(stream, Encoding.UTF8);
+                result = reader.ReadToEnd();
+            }
+            return result;
         }
 
     }

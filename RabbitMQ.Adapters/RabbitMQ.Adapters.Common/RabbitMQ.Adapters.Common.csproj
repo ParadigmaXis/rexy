@@ -69,6 +69,7 @@
     <Compile Include="WindowsAuthenticationProtocol.cs" />
     <Compile Include="WindowsAuthenticationProvider.cs" />
     <Compile Include="WindowsAuthenticationReceiver.cs" />
+    <Compile Include="XmlDocumentExtension.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
