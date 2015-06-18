@@ -67,17 +67,21 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
     }
 
     public partial class WebServiceCallerService : ServiceBase {
+        private System.Threading.Thread serviceThread;
+        private System.Threading.ManualResetEvent serviceStopEvent = new System.Threading.ManualResetEvent(false);
         public WebServiceCallerService() {
             InitializeComponent();
         }
 
         protected override void OnStart(string[] args) {
-            //new System.Threading.Thread(Main);
+            serviceThread = new System.Threading.Thread(Main);
+            serviceThread.Start();
         }
 
         protected override void OnStop() {
-            // AskToStop(thread);
-            //thread.Join();
+            serviceStopEvent.Set();
+            serviceThread.Join();
+            serviceStopEvent.Reset();
         }
 
         public void Main() {
@@ -95,15 +99,24 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                     channel.QueueBind(queue.QueueName, Constants.WebServiceAdapterExchange, "", new Dictionary<String, Object>());
                     var consumer = new QueueingBasicConsumer(channel);
                     channel.BasicConsume(queue.QueueName, false, consumer);
-                    // TODO: exit condition
                     var tasks = new List<Task>();
-                    while (true) {
-                        var msg = consumer.Queue.Dequeue();
-                        tasks.Add(Task.Factory.StartNew(() => { HandleRabbitMQRequestMessage(msg, connection.CreateModel()); }));
-                        channel.BasicAck(msg.DeliveryTag, false);
-                        if (tasks.Count >= 50) {
-                            var finished = Task.WaitAny(tasks.ToArray());
-                            tasks.RemoveAt(finished);
+                    const int WAIT_TIMEOUT_MILLISECOND = 500;
+                    while (!serviceStopEvent.WaitOne(0)) {
+                        if (tasks.Count >= Environment.ProcessorCount * 4) {
+                            var finished = Task.WaitAny(tasks.ToArray(), WAIT_TIMEOUT_MILLISECOND);
+                            if (finished >= 0) {
+                                tasks.RemoveAt(finished);
+                            } else {
+                                Console.WriteLine("Waiting for: tasks to finish; exit signal.");
+                            }
+                        } else {
+                            Client.Events.BasicDeliverEventArgs msg;
+                            if (consumer.Queue.Dequeue(WAIT_TIMEOUT_MILLISECOND, out msg)) {
+                                tasks.Add(Task.Factory.StartNew(() => { HandleRabbitMQRequestMessage(msg, connection.CreateModel()); }, TaskCreationOptions.LongRunning));
+                                channel.BasicAck(msg.DeliveryTag, false);
+                            } else {
+                                Console.WriteLine("Waiting for: messages to arrive; exit signal.");
+                            }
                         }
                     }
                 }

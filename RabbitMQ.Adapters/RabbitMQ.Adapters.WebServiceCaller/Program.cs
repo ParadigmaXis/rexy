@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration.Install;
+using System.Linq.Expressions;
 using System.ServiceProcess;
 
 namespace RabbitMQ.Adapters.WebServiceCaller {
@@ -31,7 +32,18 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
         }
 
         static void RunConsole() {
-            new WebServiceCallerService().Main();
+            var service = new WebServiceCallerService();
+
+            /// HACK: Build Expressions to call protected methods <see cref="ServiceBase.OnStart(String[])"/> and <see cref="ServiceBase.OnStop()"/>:
+            var onStartMethod = service.GetType().GetMethod("OnStart", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var onStopMethod = service.GetType().GetMethod("OnStop", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var args = Expression.Parameter(typeof(string[]));
+            var onStart = Expression.Lambda<Action<string[]>>(Expression.Call(Expression.Constant(service), onStartMethod, args), args).Compile();
+            var onStop = Expression.Lambda<Action>(Expression.Call(Expression.Constant(service), onStopMethod)).Compile();
+
+            onStart(new string[0]);
+            Console.ReadKey();
+            onStop();
         }
 
         static void RunService() {
