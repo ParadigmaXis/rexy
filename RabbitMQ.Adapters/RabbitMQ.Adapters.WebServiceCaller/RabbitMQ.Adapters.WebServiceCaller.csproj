@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{4F8D5EAB-CA24-4DBD-90BF-136B7A5AE335}</ProjectGuid>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>RabbitMQ.Adapters.WebServiceCaller</RootNamespace>
     <AssemblyName>RabbitMQ.Adapters.WebServiceCaller</AssemblyName>
@@ -31,6 +31,9 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Samples.Security.SSPI, Version=2.0.14.0, Culture=neutral, PublicKeyToken=9f0928b6ea506bde, processorArchitecture=x86">
