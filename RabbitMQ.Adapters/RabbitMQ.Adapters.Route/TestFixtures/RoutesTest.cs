@@ -11,10 +11,10 @@ using System.Xml;
 namespace RabbitMQ.Adapters.Routes.TestFixtures {
     [TestFixture]
     public class RoutesTest {
-        XElement raw_routes;
+        XElement rawRoutes;
         [SetUp]
         public void Init() {
-            raw_routes =
+            rawRoutes =
                 new XElement("routes",
                     new XElement("route",
                         new XAttribute("name", "webservice1"),
@@ -31,7 +31,7 @@ namespace RabbitMQ.Adapters.Routes.TestFixtures {
         [Test]
         public void ReadRouteXMLTest() {
             var parser = new ParseRoutesFile();
-            var routes = parser.XmlToRoutes(raw_routes);
+            var routes = parser.XmlToRoutes(rawRoutes);
 
             CollectionAssert.AllItemsAreInstancesOfType(routes, typeof(Route));
             Assert.AreEqual(2, routes.Count());
