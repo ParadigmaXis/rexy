@@ -41,6 +41,22 @@ namespace RabbitMQ.Adapters.Routes.TestFixtures {
         }
 
         [Test]
+        public void InvalideDestinationUriTest() {
+            var rawRoute =
+                new XElement("routes",
+                    new XElement("route",
+                        new XAttribute("name", "webservice1"),
+                        new XElement("path", "helloworld/HelloWorldService.asmx"),
+                        new XElement("destination", "invalid url")
+                    )
+                );
+            var parser = new ParseRoutesFile();
+            var routes = parser.XmlToRoutes(rawRoute);
+
+            Assert.AreEqual(0, routes.Count());
+        }
+
+        [Test]
         public void ApiTest() {
             var r = Api.GetApi.GetRoute("helloworld/HelloWorldService.asmx");
 
