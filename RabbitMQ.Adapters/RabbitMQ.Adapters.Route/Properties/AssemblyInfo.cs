@@ -1,17 +1,16 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using log4net;
 
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("RabbitMQ.Adapters.HttpHandlers")]
+[assembly: AssemblyTitle("RabbitMQ.Adapters.Routes")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("ParadigmaXis")]
-[assembly: AssemblyProduct("RabbitMQ.Adapters")]
-[assembly: AssemblyCopyright("Copyright © ParadigmaXis 2015")]
+[assembly: AssemblyCompany("")]
+[assembly: AssemblyProduct("RabbitMQ.Adapters.Routes")]
+[assembly: AssemblyCopyright("Copyright ©  2015")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -21,7 +20,7 @@ using log4net;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("317051cc-5418-4381-a977-a3b59f123812")]
+[assembly: Guid("c0c7bf08-38a5-4f57-80ef-edd83e42f400")]
 
 // Version information for an assembly consists of the following four values:
 //
@@ -30,13 +29,8 @@ using log4net;
 //      Build Number
 //      Revision
 //
-// You can specify all the values or you can default the Revision and Build Numbers 
+// You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
+// [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
-
-// Configure log4net using the .config file
-[assembly: log4net.Config.XmlConfigurator(Watch = true)]
-// This will cause log4net to look for a configuration file
-// called ConsoleApp.exe.config in the application base
-// directory (i.e. the directory containing ConsoleApp.exe)

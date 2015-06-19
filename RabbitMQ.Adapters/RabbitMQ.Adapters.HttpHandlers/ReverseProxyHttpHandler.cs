@@ -11,24 +11,24 @@ using System.IO;
 using System.Text;
 using System.IO.Compression;
 using System.Xml;
+using RabbitMQ.Adapters.Routes;
+using log4net;
 
 namespace RabbitMQ.Adapters.HttpHandlers {
 
     class QueueTimeoutException : Exception { }
 
     public class ReverseProxyHttpHandler : IHttpHandler {
+
+        private static readonly ILog logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         bool IHttpHandler.IsReusable {
             get { return true; }
         }
 
         void IHttpHandler.ProcessRequest(HttpContext context) {
-            //const string IN_URL = "http://aura/rabbitmq-adapters/helloworld/HelloWorldService.asmx";
-            const string OUT_URL = "http://127.0.0.1/helloworld/HelloWorldService.asmx";
-            var url = new UriBuilder(OUT_URL);
-            if (!String.IsNullOrEmpty(context.Request.Url.Query)) {
-                url.Query = context.Request.Url.Query.Substring(1);
-            }
-            System.Diagnostics.EventLog.WriteEntry("ASP.NET 4.0.30319.0", String.Format("Redirect {0} to {1}{2}", context.Request.Url, url, context.Request.IsAuthenticated ? " with authentication" : ""));
+            // TODO: log something more useful
+            //System.Diagnostics.EventLog.WriteEntry("ASP.NET 4.0.30319.0", String.Format("Redirect {0} to {1}{2}", context.Request.Url, url, context.Request.IsAuthenticated ? " with authentication" : ""));
 
             try {
                 try {
@@ -55,14 +55,19 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         }
 
         private void GetResponse(HttpRequest request, HttpResponse response) {
+            var proxyTargetPath = GetProxyTargetPath(request);
             var basicProperties = HttpRequestToRabbitMQBasicProperties(request);
             var body = request.GetRequestBytes();
             var requestMsg = new RabbitMQMessage(basicProperties, body);
             var responseMsg = PostAndWait(requestMsg);
             ReplaceBodyURLs(responseMsg,
-                GetDestinationURL("helloworld/HelloWorldService.asmx"),
-                GetProxyTargetURL(request, "helloworld/HelloWorldService.asmx"));
+                GetDestinationURL(proxyTargetPath),
+                GetProxyTargetURL(request, proxyTargetPath));
             RabbitMQMessageToHttpResponse(responseMsg, response);
+        }
+
+        private string GetProxyTargetPath(HttpRequest request) {
+            return request.Url.AbsolutePath.Substring(GetProxyTargetURL(request).AbsolutePath.Length);
         }
 
         private Uri GetProxyTargetURL(HttpRequest request, string relativePath = "") {
@@ -70,8 +75,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         }
 
         private Uri GetDestinationURL(string targetProxyPath) {
-            //TODO: lookup in dictionary and return appropriate target URL
-            return new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx");
+            return new Uri(Api.GetApi.GetRoute(targetProxyPath).Destination);
         }
 
         private void ReplaceBodyURLs(RabbitMQMessage responseMsg, Uri destinationUrl, Uri proxyTargetUrl) {
@@ -87,7 +91,6 @@ namespace RabbitMQ.Adapters.HttpHandlers {
 
             try {
                 var document = new XmlDocument();
-                //document.Load(new System.IO.MemoryStream(body, 0, body.Length));
                 document.LoadXml(body);
                 if (document.IsWsdl()) {
                     var nsmgr = new XmlNamespaceManager(new NameTable());
@@ -100,8 +103,6 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                         var attr = node.Attributes.GetNamedItem("location");
                         attr.Value = attr.Value.Replace(destinationUrl.ToString(), proxyTargetUrl.ToString());
                     }
-
-                    //document -> resposeMsg.Body
 
                     using (var ms = new MemoryStream()) {
                         if (isGzipCompressed) {
@@ -128,14 +129,15 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 } else if (document.IsSoapMessage()) {
                     //TODO: process soap messages. Remove soap envelope?
                 }
+            } catch (XmlException ex) {
+                logger.Info("Response will not be processed (it's not xml).", ex);
             } catch (Exception ex) {
-                // FIXME: log the exception somewhere
-                // response is not XML, so don't process it
+                logger.Error("Exception thrown while processing message to replace body URLs.", ex);
             }
         }
 
         private IBasicProperties HttpRequestToRabbitMQBasicProperties(HttpRequest request) {
-            return CreateRequestBasicProperties(request.HttpMethod, request.Url, new Uri("http://localhost:8888/helloworld/HelloWorldService.asmx"), ExtracthttpRequestHeaders(request), request.IsAuthenticated);
+            return CreateRequestBasicProperties(request.HttpMethod, request.Url, GetDestinationURL(GetProxyTargetPath(request)), ExtracthttpRequestHeaders(request), request.IsAuthenticated);
         }
 
         internal IBasicProperties CreateRequestBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated) {

@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<routes>
+  <route name="webservice1">
+    <path>helloworld/HelloWorldService.asmx</path>
+    <destination>http://localhost:8888/helloworld/HelloWorldService.asmx</destination>
+  </route>
+  <route name="webservice2">
+    <path>test/TestService.asmx</path>
+    <destination>amqp://service1</destination>
+  </route>
+</routes>
