@@ -50,12 +50,14 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                             var finished = Task.WaitAny(tasks.ToArray(), WAIT_TIMEOUT_MILLISECOND);
                             if (finished >= 0) {
                                 tasks.RemoveAt(finished);
+                                Console.WriteLine("Request message processed.");
                             } else {
                                 Console.WriteLine("Waiting for: tasks to finish; exit signal.");
                             }
                         } else {
                             Client.Events.BasicDeliverEventArgs msg;
                             if (consumer.Queue.Dequeue(WAIT_TIMEOUT_MILLISECOND, out msg)) {
+                                Console.WriteLine("Request message arrived...");
                                 tasks.Add(Task.Factory.StartNew(() => { HandleRabbitMQRequestMessage(msg, connection.CreateModel()); }, TaskCreationOptions.LongRunning));
                                 channel.BasicAck(msg.DeliveryTag, false);
                             } else {
