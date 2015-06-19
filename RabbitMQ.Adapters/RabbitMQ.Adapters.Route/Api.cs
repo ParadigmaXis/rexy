@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace RabbitMQ.Adapters.Routes {
     public class Api {
-        private static string ROUTES_FILE_PATH = AppDomain.CurrentDomain.BaseDirectory + "\\routes.xml";
+        private static string ROUTES_FILE_PATH = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase) + "\\routes.xml";
         private IEnumerable<Route> routes;
 
         private static Api _api;
