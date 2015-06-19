@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace RabbitMQ.Adapters.Route {
+namespace RabbitMQ.Adapters.Routes {
     public class Route {
 
         public string Name { get; }

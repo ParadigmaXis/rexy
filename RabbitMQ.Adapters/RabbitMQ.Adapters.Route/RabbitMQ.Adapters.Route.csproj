@@ -7,9 +7,9 @@
     <ProjectGuid>{C0C7BF08-38A5-4F57-80EF-EDD83E42F400}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>RabbitMQ.Adapters.Route</RootNamespace>
-    <AssemblyName>RabbitMQ.Adapters.Route</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <RootNamespace>RabbitMQ.Adapters.Routes</RootNamespace>
+    <AssemblyName>RabbitMQ.Adapters.Routes</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>

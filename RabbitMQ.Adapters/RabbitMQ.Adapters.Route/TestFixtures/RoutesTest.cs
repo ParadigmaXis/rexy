@@ -8,7 +8,7 @@ using System.Xml.Linq;
 using NUnit.Framework;
 using System.Xml;
 
-namespace RabbitMQ.Adapters.Route.TestFixtures {
+namespace RabbitMQ.Adapters.Routes.TestFixtures {
     [TestFixture]
     public class RoutesTest {
         XElement raw_routes;

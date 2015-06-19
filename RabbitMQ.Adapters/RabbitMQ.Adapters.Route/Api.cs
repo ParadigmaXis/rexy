@@ -1,11 +1,11 @@
-﻿using RabbitMQ.Adapters.Route;
+﻿using RabbitMQ.Adapters.Routes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace RabbitMQ.Adapters.Route {
+namespace RabbitMQ.Adapters.Routes {
     public class Api {
         private static string ROUTES_FILE_PATH = AppDomain.CurrentDomain.BaseDirectory + "\\routes.xml";
         private IEnumerable<Route> routes;
