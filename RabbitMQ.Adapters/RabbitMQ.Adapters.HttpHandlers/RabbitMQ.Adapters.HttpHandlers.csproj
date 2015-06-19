@@ -106,6 +106,10 @@
       <Project>{e3318c19-c4e7-4e11-9c19-0c4638addf23}</Project>
       <Name>RabbitMQ.Adapters.Common</Name>
     </ProjectReference>
+    <ProjectReference Include="..\RabbitMQ.Adapters.Route\RabbitMQ.Adapters.Route.csproj">
+      <Project>{c0c7bf08-38a5-4f57-80ef-edd83e42f400}</Project>
+      <Name>RabbitMQ.Adapters.Route</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
