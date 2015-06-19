@@ -12,3 +12,5 @@ RabbitMQ.Adapters/RabbitMQ.Adapters.Common/bin/
 RabbitMQ.Adapters/RabbitMQ.Adapters.Common/obj/
 RabbitMQ.Adapters/HelloWorld.Client/bin/
 RabbitMQ.Adapters/HelloWorld.Client/obj/
+RabbitMQ.Adapters/RabbitMQ.Adapters.Route/bin/
+RabbitMQ.Adapters/RabbitMQ.Adapters.Route/obj/
