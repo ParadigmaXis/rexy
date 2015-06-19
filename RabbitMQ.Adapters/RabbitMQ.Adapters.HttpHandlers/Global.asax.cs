@@ -2,6 +2,7 @@
 using RabbitMQ.Client;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Web;
 using System.Web.Security;
@@ -13,7 +14,12 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         public static IConnection Connection {
             get {
                 lock (typeof(Global)) {
-                    var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-http-handler", Password = "isa-http-handler" };
+                    var factory = new ConnectionFactory {
+                        HostName = ConfigurationManager.AppSettings["HostName"],
+                        VirtualHost = ConfigurationManager.AppSettings["VirtualHost"],
+                        UserName = ConfigurationManager.AppSettings["UserName"],
+                        Password = ConfigurationManager.AppSettings["Password"]
+                    };
                     if (connection == null) {
                         connection = factory.CreateConnection();
                         connection.AutoClose = false;
