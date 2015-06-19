@@ -11,12 +11,16 @@ using System.IO;
 using System.Text;
 using System.IO.Compression;
 using System.Xml;
+using log4net;
 
 namespace RabbitMQ.Adapters.HttpHandlers {
 
     class QueueTimeoutException : Exception { }
 
     public class ReverseProxyHttpHandler : IHttpHandler {
+
+        private static readonly ILog logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         bool IHttpHandler.IsReusable {
             get { return true; }
         }
@@ -87,7 +91,6 @@ namespace RabbitMQ.Adapters.HttpHandlers {
 
             try {
                 var document = new XmlDocument();
-                //document.Load(new System.IO.MemoryStream(body, 0, body.Length));
                 document.LoadXml(body);
                 if (document.IsWsdl()) {
                     var nsmgr = new XmlNamespaceManager(new NameTable());
@@ -100,8 +103,6 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                         var attr = node.Attributes.GetNamedItem("location");
                         attr.Value = attr.Value.Replace(destinationUrl.ToString(), proxyTargetUrl.ToString());
                     }
-
-                    //document -> resposeMsg.Body
 
                     using (var ms = new MemoryStream()) {
                         if (isGzipCompressed) {
@@ -128,9 +129,10 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 } else if (document.IsSoapMessage()) {
                     //TODO: process soap messages. Remove soap envelope?
                 }
+            } catch (XmlException ex) {
+                logger.Info("Response will not be processed (it's not xml).", ex);
             } catch (Exception ex) {
-                // FIXME: log the exception somewhere
-                // response is not XML, so don't process it
+                logger.Error("Exception thrown while processing message to replace body URLs.", ex);
             }
         }
 
