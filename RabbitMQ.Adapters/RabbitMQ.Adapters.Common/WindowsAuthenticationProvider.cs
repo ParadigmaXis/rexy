@@ -15,20 +15,23 @@ namespace RabbitMQ.Adapters.Common {
             if (clientContext == null) {
                 clientContext = new Microsoft.Samples.Security.SSPI.ClientContext(new Microsoft.Samples.Security.SSPI.ClientCredential(Microsoft.Samples.Security.SSPI.Credential.Package.Negotiate), "", Microsoft.Samples.Security.SSPI.ClientContext.ContextAttributeFlags.Delegate);
             } else {
-                if (!clientContext.ContinueProcessing) {
-                    throw new Exception();
+                if (clientContext.ContinueProcessing) {
+                    clientContext.Initialize(e.Body);
                 }
-                clientContext.Initialize(e.Body);
             }
-            var basicProperties = new RabbitMQ.Client.Framing.BasicProperties() {
-                Headers = new Dictionary<string, object>()
-            };
-            basicProperties.CorrelationId = e.BasicProperties.CorrelationId;
-            basicProperties.ReplyTo = queueName;
-            basicProperties.ContentType = Constants.ContentTypeOctetStream;
-            basicProperties.Type = Constants.SoapAuthMessagetype;
-            basicProperties.Headers.Add("SSPI-ContinueProcessing", clientContext.ContinueProcessing.ToString());
-            SendMessage(basicProperties, clientContext.Token);
+            if (clientContext.Token != null) {
+                var basicProperties = new RabbitMQ.Client.Framing.BasicProperties() {
+                    Headers = new Dictionary<string, object>()
+                };
+                basicProperties.CorrelationId = e.BasicProperties.CorrelationId;
+                basicProperties.ReplyTo = queueName;
+                basicProperties.ContentType = Constants.ContentTypeOctetStream;
+                basicProperties.Type = Constants.SoapAuthMessagetype;
+                SendMessage(basicProperties, clientContext.Token ?? new byte[0]);
+            }
+            //if (!clientContext.ContinueProcessing) {
+            //    Authenticated(clientContext)
+            //}
         }
     }
 }

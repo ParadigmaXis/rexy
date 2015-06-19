@@ -28,14 +28,14 @@ namespace RabbitMQ.Adapters.Common {
         }
 
         public override void HandleAuthenticationMessage(string queueName, BasicDeliverEventArgs e) {
-            if (!bool.Parse(Constants.GetUTF8String(e.BasicProperties.Headers["SSPI-ContinueProcessing"]))) {
-                Authenticated(serverContext);
+            if (serverContext == null) {
+                serverContext = new Microsoft.Samples.Security.SSPI.ServerContext(new Microsoft.Samples.Security.SSPI.ServerCredential(Microsoft.Samples.Security.SSPI.Credential.Package.Negotiate), e.Body);
             } else {
-                if (serverContext == null) {
-                    serverContext = new Microsoft.Samples.Security.SSPI.ServerContext(new Microsoft.Samples.Security.SSPI.ServerCredential(Microsoft.Samples.Security.SSPI.Credential.Package.Negotiate), e.Body);
-                } else {
+                if (serverContext.ContinueProcessing) {
                     serverContext.Accept(e.Body);
                 }
+            }
+            if (serverContext.Token != null) {
                 var basicProperties = new RabbitMQ.Client.Framing.BasicProperties() {
                     Headers = new Dictionary<string, object>()
                 };
@@ -44,7 +44,10 @@ namespace RabbitMQ.Adapters.Common {
                 basicProperties.ContentType = Constants.ContentTypeOctetStream;
                 basicProperties.Type = Constants.SoapAuthMessagetype;
                 var token = serverContext.Token;
-                SendMessage(basicProperties, serverContext.Token);
+                SendMessage(basicProperties, serverContext.Token ?? new byte[0]);
+            }
+            if (!serverContext.ContinueProcessing) {
+                Authenticated(serverContext);
             }
         }
     }
