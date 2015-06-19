@@ -37,7 +37,7 @@ namespace RabbitMQ.Adapters.Routes.TestFixtures {
             Assert.AreEqual(2, routes.Count());
             Assert.AreEqual("webservice1", routes.ElementAt(0).Name);
             Assert.AreEqual("helloworld/HelloWorldService.asmx", routes.ElementAt(0).Path);
-            Assert.AreEqual("http://aura:8888/helloworld/HelloWorldService.asmx", routes.ElementAt(0).Destination);
+            Assert.AreEqual("http://aura:8888/helloworld/HelloWorldService.asmx", routes.ElementAt(0).Destination.ToString());
         }
 
         [Test]

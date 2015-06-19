@@ -13,8 +13,18 @@ namespace RabbitMQ.Adapters.Routes {
             return XElement.Load(filePath);
         }
 
-        internal IEnumerable<Route> XmlToRoutes(XElement routes) {
-            return routes.Descendants("route").Select(r => new Route(r.Attribute("name").Value, r.Element("path").Value, r.Element("destination").Value));
+        internal IEnumerable<Route> XmlToRoutes(XElement rawRoutes) {
+            var routes = new List<Route>();
+            Uri uri;
+            rawRoutes.Descendants("route").ToList().ForEach(r => {
+                if (ValidateDestinationUrl(r.Element("destination").Value, out uri))
+                    routes.Add(new Route(r.Attribute("name").Value, r.Element("path").Value, uri));
+            });
+            return routes;
+        }
+
+        private static bool ValidateDestinationUrl(string url, out Uri uri) {
+            return Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out uri);
         }
     }
 }
