@@ -45,7 +45,7 @@ namespace RabbitMQ.Adapters.Routes.TestFixtures {
             var r = Api.GetApi.GetRoute("helloworld/HelloWorldService.asmx");
 
             Assert.IsNotNull(r);
-            Assert.AreEqual("http://aura:8888/helloworld/HelloWorldService.asmx", r.Destination);
+            Assert.AreEqual("http://localhost:8888/helloworld/HelloWorldService.asmx", r.Destination);
         }
     }
 }
