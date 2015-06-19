@@ -9,18 +9,27 @@ using System.Web.SessionState;
 
 namespace RabbitMQ.Adapters.HttpHandlers {
     public class Global : System.Web.HttpApplication {
-
+        private static IConnection connection;
+        public static IConnection Connection {
+            get {
+                lock (typeof(Global)) {
+                    var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-http-handler", Password = "isa-http-handler" };
+                    if (connection == null) {
+                        connection = factory.CreateConnection();
+                        connection.AutoClose = false;
+                        connection.ConnectionShutdown += (sender, e) => connection = null;
+                    }
+                }
+                return connection;
+            }
+        }
         protected void Application_Start(object sender, EventArgs e) {
             using (var thisVariableForcesTheLoadingOfTheAssembly = new Microsoft.Samples.Security.SSPI.ClientContext(new Microsoft.Samples.Security.SSPI.ClientCredential(Microsoft.Samples.Security.SSPI.Credential.Package.Negotiate), "", Microsoft.Samples.Security.SSPI.ClientContext.ContextAttributeFlags.Delegate)) {
             }
-
-            var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-http-handler", Password = "isa-http-handler" };
-            using (var connection = factory.CreateConnection()) {
-                using (var channel = connection.CreateModel()) {
-                    channel.TxSelect();
-                    channel.ExchangeDeclare(Constants.WebServiceAdapterExchange, ExchangeType.Headers, true, false, null);
-                    channel.TxCommit();
-                }
+            using (var channel = Connection.CreateModel()) {
+                channel.TxSelect();
+                channel.ExchangeDeclare(Constants.WebServiceAdapterExchange, ExchangeType.Headers, true, false, null);
+                channel.TxCommit();
             }
         }
 

@@ -178,44 +178,41 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         }
 
         private RabbitMQMessage PostAndWait(RabbitMQMessage requestMsg) {
-            var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-http-handler", Password = "isa-http-handler" };
-            using (var connection = factory.CreateConnection()) {
-                using (var channel = connection.CreateModel()) {
-                    channel.BasicAcks += (sender, e) => Debug.WriteLine(string.Format("RPHH::ACK {0} {1}", e.DeliveryTag, e.Multiple));
-                    channel.BasicNacks += (sender, e) => Debug.WriteLine(string.Format("RPHH::NACK {0} {1} {2}", e.DeliveryTag, e.Multiple, e.Requeue));
-                    channel.BasicRecoverOk += (sender, e) => Debug.WriteLine(string.Format("RPHH::RECOVER_OK"));
-                    channel.BasicReturn += (sender, e) => Debug.WriteLine(string.Format("RPHH::RETURN ..."));
-                    channel.CallbackException += (sender, e) => Debug.WriteLine(string.Format("RPHH::CALLBACK_EXCEPTION {0}", e.Exception.Message));
-                    channel.ModelShutdown += (sender, e) => Debug.WriteLine(string.Format("RPHH::MODEL_SHUTDOWN ..."));
+            using (var channel = Global.Connection.CreateModel()) {
+                channel.BasicAcks += (sender, e) => Debug.WriteLine(string.Format("RPHH::ACK {0} {1}", e.DeliveryTag, e.Multiple));
+                channel.BasicNacks += (sender, e) => Debug.WriteLine(string.Format("RPHH::NACK {0} {1} {2}", e.DeliveryTag, e.Multiple, e.Requeue));
+                channel.BasicRecoverOk += (sender, e) => Debug.WriteLine(string.Format("RPHH::RECOVER_OK"));
+                channel.BasicReturn += (sender, e) => Debug.WriteLine(string.Format("RPHH::RETURN ..."));
+                channel.CallbackException += (sender, e) => Debug.WriteLine(string.Format("RPHH::CALLBACK_EXCEPTION {0}", e.Exception.Message));
+                channel.ModelShutdown += (sender, e) => Debug.WriteLine(string.Format("RPHH::MODEL_SHUTDOWN ..."));
 
-                    var privateQueue = channel.QueueDeclare();
-                    var consumer = new QueueingBasicConsumer(channel);
-                    channel.BasicConsume(privateQueue.QueueName, false, consumer);
+                var privateQueue = channel.QueueDeclare();
+                var consumer = new QueueingBasicConsumer(channel);
+                channel.BasicConsume(privateQueue.QueueName, false, consumer);
 
-                    requestMsg.BasicProperties.CorrelationId = Guid.NewGuid().ToString();
-                    requestMsg.BasicProperties.ReplyTo = privateQueue.QueueName;
-                    channel.BasicPublish(new PublicationAddress(ExchangeType.Headers, Constants.WebServiceAdapterExchange, ""), requestMsg.BasicProperties, requestMsg.Body);
+                requestMsg.BasicProperties.CorrelationId = Guid.NewGuid().ToString();
+                requestMsg.BasicProperties.ReplyTo = privateQueue.QueueName;
+                channel.BasicPublish(new PublicationAddress(ExchangeType.Headers, Constants.WebServiceAdapterExchange, ""), requestMsg.BasicProperties, requestMsg.Body);
 
-                    BasicDeliverEventArgs msg = null;
-                    var provider = new WindowsAuthenticationProvider(
-                        (basicProperties, body) => { channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body); }
-                        );
-                    while (consumer.Queue.Dequeue(600000, out msg)) {
-                        if (provider.IsAuthenticationMessage(msg)) {
-                            provider.HandleAuthenticationMessage(privateQueue.QueueName, msg);
-                        } else {
-                            //assert msg.BasicProperties.CorrelationId == basicProperties.CorrelationId
-                            Debug.WriteLine("Got a reply!");
-                            return new RabbitMQMessage {
-                                BasicProperties = msg.BasicProperties,
-                                Body = msg.Body
-                            };
-                        }
+                BasicDeliverEventArgs msg = null;
+                var provider = new WindowsAuthenticationProvider(
+                    (basicProperties, body) => { channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body); }
+                    );
+                while (consumer.Queue.Dequeue(600000, out msg)) {
+                    if (provider.IsAuthenticationMessage(msg)) {
+                        provider.HandleAuthenticationMessage(privateQueue.QueueName, msg);
+                    } else {
+                        //assert msg.BasicProperties.CorrelationId == basicProperties.CorrelationId
+                        Debug.WriteLine("Got a reply!");
+                        return new RabbitMQMessage {
+                            BasicProperties = msg.BasicProperties,
+                            Body = msg.Body
+                        };
                     }
-                    Debug.WriteLine("Timeout");
-                    // TODO: log timeout
-                    throw new QueueTimeoutException();
                 }
+                Debug.WriteLine("Timeout");
+                // TODO: log timeout
+                throw new QueueTimeoutException();
             }
         }
     }
