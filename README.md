@@ -1,5 +1,5 @@
 # Rexy
-A C# reverse proxy for SOAP requests, over a RabbitMQ message broker. The 
+A C# REverse proXY for SOAP requests, over a RabbitMQ message broker. The 
 project consists of two main projects, the proxy endpoint 
 (`RabbitMQ.Adapters.HttpHandlers`) and the SOAP forwarder 
 (`RabbitMQ.Adapters.WebServiceCaller`).
