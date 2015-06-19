@@ -24,7 +24,7 @@ namespace RabbitMQ.Adapters.Routes {
         }
 
         private static bool ValidateDestinationUrl(string url, out Uri uri) {
-            return Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out uri);
+            return Uri.TryCreate(url, UriKind.Absolute, out uri);
         }
     }
 }
