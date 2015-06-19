@@ -104,19 +104,16 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                         attr.Value = attr.Value.Replace(destinationUrl.ToString(), proxyTargetUrl.ToString());
                     }
 
-                    using (var ms = new MemoryStream()) {
+                    using (var outms = new MemoryStream()) {
                         if (isGzipCompressed) {
-                            using (var outms = new MemoryStream()) {
-                                document.Save(ms);
-                                using (var zipStream = new GZipStream(outms, CompressionMode.Compress, false)) {
-                                    zipStream.Write(ms.ToArray(), 0, (int)ms.Length);
-                                }
-                                responseMsg.Body = outms.ToArray();
+                            using (var zipStream = new GZipStream(outms, CompressionMode.Compress, false)) {
+                                document.Save(zipStream);
                             }
                         } else {
-                            document.Save(ms);
-                            responseMsg.Body = ms.ToArray();
+                            document.Save(outms);
                         }
+                        responseMsg.Body = outms.ToArray();
+                        responseMsg.BasicProperties.Headers["http-Content-Length"] = Encoding.UTF8.GetBytes(responseMsg.Body.Length.ToString());
                     }
 
                     nsmgr.AddNamespace("s", "http://www.w3.org/2001/XMLSchema");
