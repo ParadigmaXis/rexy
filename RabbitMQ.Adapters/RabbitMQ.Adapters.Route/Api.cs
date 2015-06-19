@@ -24,8 +24,8 @@ namespace RabbitMQ.Adapters.Routes {
             routes = parser.XmlToRoutes(parser.LoadRawRoutes(ROUTES_FILE_PATH));
         }
 
-        public Route GetRoute(string origin) {
-            return routes.SingleOrDefault(r => r.Path.Equals(origin));
+        public Route GetRoute(string path) {
+            return routes.SingleOrDefault(r => r.Path.Equals(path));
         }
     }
 }
