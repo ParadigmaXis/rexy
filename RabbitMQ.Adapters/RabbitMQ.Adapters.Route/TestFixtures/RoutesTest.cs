@@ -55,13 +55,5 @@ namespace RabbitMQ.Adapters.Routes.TestFixtures {
 
             Assert.AreEqual(0, routes.Count());
         }
-
-        [Test]
-        public void ApiTest() {
-            var r = Api.GetApi.GetRoute("helloworld/HelloWorldService.asmx");
-
-            Assert.IsNotNull(r);
-            Assert.AreEqual("http://localhost:8888/helloworld/HelloWorldService.asmx", r.Destination);
-        }
     }
 }
