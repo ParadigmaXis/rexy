@@ -14,3 +14,4 @@ RabbitMQ.Adapters/HelloWorld.Client/bin/
 RabbitMQ.Adapters/HelloWorld.Client/obj/
 RabbitMQ.Adapters/RabbitMQ.Adapters.Route/bin/
 RabbitMQ.Adapters/RabbitMQ.Adapters.Route/obj/
+RabbitMQ.Adapters/RabbitMQ.Adapters.HttpHandlers/logfile.txt*

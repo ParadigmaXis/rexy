@@ -2,6 +2,7 @@
 using RabbitMQ.Client;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
@@ -29,7 +30,12 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
         }
 
         public void Main() {
-            var factory = new ConnectionFactory { HostName = "AURA", VirtualHost = "/", UserName = "isa-web-service-caller", Password = "isa-web-service-caller" };
+            var factory = new ConnectionFactory {
+                HostName = ConfigurationManager.AppSettings["HostName"],
+                VirtualHost = ConfigurationManager.AppSettings["VirtualHost"],
+                UserName = ConfigurationManager.AppSettings["UserName"],
+                Password = ConfigurationManager.AppSettings["Password"]
+            };
             using (var connection = factory.CreateConnection()) {
                 using (var channel = connection.CreateModel()) {
                     channel.BasicAcks += (sender, e) => Debug.WriteLine(string.Format("WSCS::ACK {0} {1}", e.DeliveryTag, e.Multiple));

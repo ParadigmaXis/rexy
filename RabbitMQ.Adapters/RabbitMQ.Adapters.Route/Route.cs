@@ -9,9 +9,9 @@ namespace RabbitMQ.Adapters.Routes {
 
         public string Name { get; }
         public string Path { get; }
-        public string Destination { get; }
+        public Uri Destination { get; }
 
-        public Route (string name, string origin, string destination) {
+        public Route (string name, string origin, Uri destination) {
             Name = name;
             Path = origin;
             Destination = destination;

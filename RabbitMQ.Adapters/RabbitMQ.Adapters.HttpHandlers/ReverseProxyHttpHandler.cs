@@ -87,7 +87,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
 
         private Uri GetDestinationURL(string targetProxyPath) {
             logger.DebugFormat("GetDestinationURL({0})", targetProxyPath);
-            return new Uri(Api.GetApi.GetRoute(targetProxyPath).Destination);
+            return Api.GetApi.GetRoute(targetProxyPath).Destination;
         }
 
         private void ReplaceBodyURLs(RabbitMQMessage responseMsg, Uri destinationUrl, Uri proxyTargetUrl) {

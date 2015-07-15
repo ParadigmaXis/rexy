@@ -29,8 +29,8 @@ namespace RabbitMQ.Adapters.Routes {
             
         }
 
-        public Route GetRoute(string origin) {
-            return routes.SingleOrDefault(r => r.Path.Equals(origin));
+        public Route GetRoute(string path) {
+            return routes.SingleOrDefault(r => r.Path.Equals(path));
         }
     }
 }
