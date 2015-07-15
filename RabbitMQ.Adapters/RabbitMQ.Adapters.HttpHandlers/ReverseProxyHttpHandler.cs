@@ -29,14 +29,24 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         void IHttpHandler.ProcessRequest(HttpContext context) {
             // TODO: log something more useful
             //System.Diagnostics.EventLog.WriteEntry("ASP.NET 4.0.30319.0", String.Format("Redirect {0} to {1}{2}", context.Request.Url, url, context.Request.IsAuthenticated ? " with authentication" : ""));
-
+            System.IO.File.WriteAllLines("C:\\Users\\ISA-WS\\" + Guid.NewGuid().ToString() + ".txt", new string[0]);
             try {
                 try {
                     if (context.Request.IsAuthenticated) {
+                        logger.InfoFormat("Authenticated {0} using {1} at level {2}", context.Request.LogonUserIdentity.Name, context.Request.LogonUserIdentity.AuthenticationType, context.Request.LogonUserIdentity.ImpersonationLevel);
+
                         using (var impersonation = context.Request.LogonUserIdentity.Impersonate()) {
                             GetResponse(context.Request, context.Response);
+                            System.IO.File.WriteAllLines("C:\\FusionLog\\" + Guid.NewGuid().ToString() + ".txt", new string[0]);
+                            try {
+                                GetResponse(context.Request, context.Response);
+                            } catch (Exception ex) {
+                                logger.Error(ex.Message, ex);
+                                throw;
+                            }
                         }
                     } else {
+                        logger.Info("Unauthenticated");
                         GetResponse(context.Request, context.Response);
                     }
                 } catch (QueueTimeoutException ex) {
@@ -55,6 +65,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         }
 
         private void GetResponse(HttpRequest request, HttpResponse response) {
+            logger.DebugFormat("Request URL: {0}", request.Url);
             var proxyTargetPath = GetProxyTargetPath(request);
             var basicProperties = HttpRequestToRabbitMQBasicProperties(request);
             var body = request.GetRequestBytes();
@@ -75,6 +86,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         }
 
         private Uri GetDestinationURL(string targetProxyPath) {
+            logger.DebugFormat("GetDestinationURL({0})", targetProxyPath);
             return new Uri(Api.GetApi.GetRoute(targetProxyPath).Destination);
         }
 

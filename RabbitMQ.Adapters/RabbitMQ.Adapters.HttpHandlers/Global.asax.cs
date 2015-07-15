@@ -24,8 +24,6 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             }
         }
         protected void Application_Start(object sender, EventArgs e) {
-            using (var thisVariableForcesTheLoadingOfTheAssembly = new Microsoft.Samples.Security.SSPI.ClientContext(new Microsoft.Samples.Security.SSPI.ClientCredential(Microsoft.Samples.Security.SSPI.Credential.Package.Negotiate), "", Microsoft.Samples.Security.SSPI.ClientContext.ContextAttributeFlags.Delegate)) {
-            }
             using (var channel = Connection.CreateModel()) {
                 channel.TxSelect();
                 channel.ExchangeDeclare(Constants.WebServiceAdapterExchange, ExchangeType.Headers, true, false, null);

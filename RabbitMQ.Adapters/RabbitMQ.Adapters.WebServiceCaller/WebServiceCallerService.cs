@@ -97,6 +97,12 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                     response = request.GetResponse();
                 }
             } catch (WebException ex) {
+                Console.WriteLine(ex.Message);
+                var exx = ex.InnerException;
+                while (exx != null) {
+                    Console.WriteLine("\t{0}", exx.Message);
+                    exx = exx.InnerException;
+                }
                 if (ex.Response != null) {
                     response = ex.Response;
                 } else {

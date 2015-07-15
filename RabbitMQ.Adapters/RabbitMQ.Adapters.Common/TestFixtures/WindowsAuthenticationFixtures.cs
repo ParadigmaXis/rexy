@@ -10,28 +10,7 @@ namespace RabbitMQ.Adapters.Common.TestFixtures {
     public class WindowsAuthenticationFixtures: AssertionHelper {
         [Test]
         public void HowToAuthenticate() {
-            var clientContext = new Microsoft.Samples.Security.SSPI.ClientContext(new Microsoft.Samples.Security.SSPI.ClientCredential(Microsoft.Samples.Security.SSPI.Credential.Package.Negotiate), "", Microsoft.Samples.Security.SSPI.ClientContext.ContextAttributeFlags.Delegate);
-            var clientToken = clientContext.Token;
-            // client.Send(clientContext.ContinueProcessing, clientContext.Token)
-            var serverContext = new Microsoft.Samples.Security.SSPI.ServerContext(new Microsoft.Samples.Security.SSPI.ServerCredential(Microsoft.Samples.Security.SSPI.Credential.Package.Negotiate), clientToken);
-            var serverToken = serverContext.Token;
-            // if (msg.ContinueProcessing) server.Send(serverContext.Token)
-            while (clientContext.ContinueProcessing) {
-                clientContext.Initialize(serverToken);
-                if (clientContext.ContinueProcessing) { 
-                    clientToken = clientContext.Token;
-                    // client.Send(clientContext.ContinueProcessing, clientContext.Token)
-                    serverContext.Accept(clientToken);
-                    serverToken = serverContext.Token;
-                    // if (msg.ContinueProcessing) server.Send(serverContext.Token)
-                } else {
-                    try {
-                        serverContext.ImpersonateClient();
-                    } finally {
-                        serverContext.RevertImpersonation();
-                    }
-                }
-            }
+       
         }
         // This test may fail because the number of roundtrips is not fixed.
         [Test]

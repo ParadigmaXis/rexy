@@ -5,15 +5,30 @@ using System.Text;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using NSspi;
+using NSspi.Contexts;
+using NSspi.Credentials;
 
 namespace RabbitMQ.Adapters.Common {
     public class WindowsAuthenticationReceiver : WindowsAuthenticationProtocol {
 
-        private readonly Action<Microsoft.Samples.Security.SSPI.ServerContext> Authenticated;
-        private Microsoft.Samples.Security.SSPI.ServerContext serverContext = null;
+        private readonly Action<ServerContext> Authenticated;
+        private readonly ServerCredential serverCredential;
+        private readonly ServerContext serverContext;
+        public SecurityStatus Status { get; private set; }
 
-        public WindowsAuthenticationReceiver(Action<RabbitMQ.Client.IBasicProperties, byte[]> sendMessage, Action<Microsoft.Samples.Security.SSPI.ServerContext> authenticated) : base(sendMessage) {
+        public WindowsAuthenticationReceiver(Action<IBasicProperties, byte[]> sendMessage, Action<ServerContext> authenticated) : base(sendMessage) {
             Authenticated = authenticated;
+            serverCredential = new ServerCredential(PackageNames.Kerberos);
+            serverContext = new ServerContext(serverCredential,
+                ContextAttrib.MutualAuth |
+                ContextAttrib.UseSessionKey |
+                ContextAttrib.Confidentiality |
+                ContextAttrib.ReplayDetect |
+                ContextAttrib.SequenceDetect |
+                ContextAttrib.Connection |
+                ContextAttrib.Delegate);
+            Status = SecurityStatus.ContinueNeeded;
         }
 
         public void RequestAuthentication(string queueName) {
@@ -28,26 +43,24 @@ namespace RabbitMQ.Adapters.Common {
         }
 
         public override void HandleAuthenticationMessage(string queueName, BasicDeliverEventArgs e) {
-            if (serverContext == null) {
-                serverContext = new Microsoft.Samples.Security.SSPI.ServerContext(new Microsoft.Samples.Security.SSPI.ServerCredential(Microsoft.Samples.Security.SSPI.Credential.Package.Negotiate), e.Body);
-            } else {
-                if (serverContext.ContinueProcessing) {
-                    serverContext.Accept(e.Body);
+            if (Status == SecurityStatus.ContinueNeeded) {
+                byte[] nextToken;
+                Status = serverContext.AcceptToken(e.Body, out nextToken);
+                if (Status == SecurityStatus.ContinueNeeded || Status == SecurityStatus.OK) {
+                    if (nextToken != null) {
+                        var basicProperties = new RabbitMQ.Client.Framing.BasicProperties() {
+                            Headers = new Dictionary<string, object>()
+                        };
+                        basicProperties.CorrelationId = Guid.NewGuid().ToString();
+                        basicProperties.ReplyTo = queueName;
+                        basicProperties.ContentType = Constants.ContentTypeOctetStream;
+                        basicProperties.Type = Constants.SoapAuthMessagetype;
+                        SendMessage(basicProperties, nextToken);
+                    }
                 }
-            }
-            if (serverContext.Token != null) {
-                var basicProperties = new RabbitMQ.Client.Framing.BasicProperties() {
-                    Headers = new Dictionary<string, object>()
-                };
-                basicProperties.CorrelationId = Guid.NewGuid().ToString();
-                basicProperties.ReplyTo = queueName;
-                basicProperties.ContentType = Constants.ContentTypeOctetStream;
-                basicProperties.Type = Constants.SoapAuthMessagetype;
-                var token = serverContext.Token;
-                SendMessage(basicProperties, serverContext.Token ?? new byte[0]);
-            }
-            if (!serverContext.ContinueProcessing) {
-                Authenticated(serverContext);
+                if (Status == SecurityStatus.OK) {
+                    Authenticated(serverContext);
+                }
             }
         }
     }

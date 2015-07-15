@@ -15,7 +15,15 @@ namespace HelloWorld.Services {
 
         [WebMethod]
         public string HelloWorld(string message) {
-            System.Threading.Thread.Sleep(5000);
+            if (Context.Request.IsAuthenticated) {
+                using (var impersonate = Context.Request.LogonUserIdentity.Impersonate()) {
+                    try {
+                        System.IO.File.WriteAllLines("C:\\FusionLog\\" + Guid.NewGuid().ToString() + ".txt", new string[0]);
+                    } catch (Exception ex) {
+                        return ex.Message;
+                    }
+                }
+            }
             string userName = Context.Request.IsAuthenticated ? Context.Request.LogonUserIdentity.Name : "<anonymous>";
             if (message == null) {
                 return "Hello to " + userName + " with null argument!";

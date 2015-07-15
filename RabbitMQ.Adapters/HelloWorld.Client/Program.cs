@@ -9,8 +9,9 @@ namespace HelloWorld.Client {
         static void Main(string[] args) {
             var start = DateTime.UtcNow;
             var tasks = new List<Task>();
-            for (int i = 0; i < 20; i++) {
-                tasks.Add(Task.Factory.StartNew(RunIt));
+            for (int i = 0; i < 1; i++) {
+                RunIt();
+                //tasks.Add(Task.Factory.StartNew(RunIt));
             }
             Console.WriteLine("All Running {0}", DateTime.UtcNow - start);
             Task.WaitAll(tasks.ToArray());

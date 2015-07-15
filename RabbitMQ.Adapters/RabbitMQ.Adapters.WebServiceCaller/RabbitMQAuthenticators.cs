@@ -2,6 +2,7 @@
 using System.Net;
 using RabbitMQ.Client;
 using RabbitMQ.Adapters.Common;
+using NSspi.Contexts;
 
 namespace RabbitMQ.Adapters.WebServiceCaller {
     internal interface IRabbitMQAuthenticator : IDisposable {
@@ -17,8 +18,8 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
         IModel channel = null;
         QueueDeclareOk authQueue = null;
         string replyTo = null;
-        Microsoft.Samples.Security.SSPI.ServerContext serverContext = null;
-
+        ServerContext serverContext = null;
+        ImpersonationHandle impersonation = null;
         public RabbitMQWindowsAuthenticator(IModel channel, string replyTo) {
             this.channel = channel;
             this.authQueue = this.channel.QueueDeclare();
@@ -45,14 +46,27 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                     throw new Exception();
                 }
             }
-            this.serverContext.ImpersonateClient();
-            request.Credentials = CredentialCache.DefaultNetworkCredentials;
+            Console.WriteLine("+AUTH {0} {1} {2}", serverContext.AuthorityName, serverContext.ContextUserName, serverContext.SupportsImpersonate);
+            impersonation = this.serverContext.ImpersonateClient();
+            try {
+                var ident = System.Threading.Thread.CurrentPrincipal.Identity;
+                Console.WriteLine("++AUTH {0}", ident.GetType().FullName);
+                System.IO.File.WriteAllLines("c:\\FusionLog\\" + Guid.NewGuid().ToString(), new string[0]);
+            } catch (Exception ex) {
+                Console.WriteLine("\t!\t{0}\n\t\t{1}", ex.GetType(), ex.Message);
+            }
+            //request.Credentials = CredentialCache.DefaultNetworkCredentials;
+            request.ImpersonationLevel = System.Security.Principal.TokenImpersonationLevel.Impersonation;
+            request.UseDefaultCredentials = true;
+                
         }
 
         public void Dispose() {
-            if (this.serverContext != null) {
-                this.serverContext.RevertImpersonation();
-                this.serverContext.Dispose();
+            if (impersonation != null) {
+                impersonation.Dispose();
+            }
+            if (serverContext != null) {
+                serverContext.Dispose();
             }
 
             if (this.channel != null && channel.IsOpen && authQueue != null) {
