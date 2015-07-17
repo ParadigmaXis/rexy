@@ -18,6 +18,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloWorld.Client", "HelloW
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMQ.Adapters.Route", "RabbitMQ.Adapters.Route\RabbitMQ.Adapters.Route.csproj", "{C0C7BF08-38A5-4F57-80EF-EDD83E42F400}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Lib", "Lib", "{C6E27CC5-A435-416E-ABC7-2BA07DD32DE3}"
+	ProjectSection(SolutionItems) = preProject
+		Lib\NSspi.dll = Lib\NSspi.dll
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
