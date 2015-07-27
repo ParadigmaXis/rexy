@@ -28,16 +28,14 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         }
 
         void IHttpHandler.ProcessRequest(HttpContext context) {
-            // TODO: log something more useful
-            //System.Diagnostics.EventLog.WriteEntry("ASP.NET 4.0.30319.0", String.Format("Redirect {0} to {1}{2}", context.Request.Url, url, context.Request.IsAuthenticated ? " with authentication" : ""));
+            logger.Debug("Processing request...");
+
             try {
                 try {
                     if (context.Request.IsAuthenticated) {
                         logger.InfoFormat("Authenticated {0} using {1} at level {2}", context.Request.LogonUserIdentity.Name, context.Request.LogonUserIdentity.AuthenticationType, context.Request.LogonUserIdentity.ImpersonationLevel);
 
                         using (var impersonation = context.Request.LogonUserIdentity.Impersonate()) {
-                            //GetResponse(context.Request, context.Response);
-                            //System.IO.File.WriteAllLines("C:\\FusionLog\\" + Guid.NewGuid().ToString() + ".txt", new string[0]);
                             try {
                                 GetResponse(context.Request, context.Response);
                             } catch (Exception ex) {
@@ -49,7 +47,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                         logger.Info("Unauthenticated");
                         GetResponse(context.Request, context.Response);
                     }
-                } catch (QueueTimeoutException ex) {
+                } catch (QueueTimeoutException) {
                     throw new HttpException(504, "Gateway Timeout");
                 }
             } catch (WebException ex) {
@@ -64,6 +62,8 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 context.Response.End();
                 return;
             }
+
+            logger.Debug("Request processed.");
         }
 
         private void GetResponse(HttpRequest request, HttpResponse response) {
@@ -238,9 +238,6 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 logger.Debug("AMQP message sent.");
 
                 BasicDeliverEventArgs msg = null;
-                //var provider = new WindowsAuthenticationProvider(
-                //    (basicProperties, body) => { channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body); }
-                //    );
                 var timeout = !consumer.Queue.Dequeue(600000, out msg);
 
                 if (timeout) {

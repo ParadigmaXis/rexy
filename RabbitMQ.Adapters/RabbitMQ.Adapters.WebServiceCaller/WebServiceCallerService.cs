@@ -37,50 +37,49 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
 
         public void Main() {
             try { 
-            var factory = new ConnectionFactory {
-                HostName = ConfigurationManager.AppSettings["HostName"],
-                VirtualHost = ConfigurationManager.AppSettings["VirtualHost"],
-                UserName = ConfigurationManager.AppSettings["UserName"],
-                Password = ConfigurationManager.AppSettings["Password"]
-            };
-            using (var connection = factory.CreateConnection()) {
-                using (var channel = connection.CreateModel()) {
-                    channel.BasicAcks += (sender, e) => Debug.WriteLine(string.Format("WSCS::ACK {0} {1}", e.DeliveryTag, e.Multiple));
-                    channel.BasicNacks += (sender, e) => Debug.WriteLine(string.Format("WSCS::NACK {0} {1} {2}", e.DeliveryTag, e.Multiple, e.Requeue));
-                    channel.BasicRecoverOk += (sender, e) => Debug.WriteLine(string.Format("WSCS::RECOVER_OK"));
-                    channel.BasicReturn += (sender, e) => Debug.WriteLine(string.Format("WSCS::RETURN ..."));
-                    channel.CallbackException += (sender, e) => Debug.WriteLine(string.Format("WSCS::CALLBACK_EXCEPTION {0}", e.Exception.Message));
-                    channel.ModelShutdown += (sender, e) => Debug.WriteLine(string.Format("WSCS::MODEL_SHUTDOWN ..."));
+                var factory = new ConnectionFactory {
+                    HostName = ConfigurationManager.AppSettings["HostName"],
+                    VirtualHost = ConfigurationManager.AppSettings["VirtualHost"],
+                    UserName = ConfigurationManager.AppSettings["UserName"],
+                    Password = ConfigurationManager.AppSettings["Password"]
+                };
+                using (var connection = factory.CreateConnection()) {
+                    using (var channel = connection.CreateModel()) {
+                        channel.BasicAcks += (sender, e) => Debug.WriteLine(string.Format("WSCS::ACK {0} {1}", e.DeliveryTag, e.Multiple));
+                        channel.BasicNacks += (sender, e) => Debug.WriteLine(string.Format("WSCS::NACK {0} {1} {2}", e.DeliveryTag, e.Multiple, e.Requeue));
+                        channel.BasicRecoverOk += (sender, e) => Debug.WriteLine(string.Format("WSCS::RECOVER_OK"));
+                        channel.BasicReturn += (sender, e) => Debug.WriteLine(string.Format("WSCS::RETURN ..."));
+                        channel.CallbackException += (sender, e) => Debug.WriteLine(string.Format("WSCS::CALLBACK_EXCEPTION {0}", e.Exception.Message));
+                        channel.ModelShutdown += (sender, e) => Debug.WriteLine(string.Format("WSCS::MODEL_SHUTDOWN ..."));
 
-                    var queue = channel.QueueDeclare();
-                    channel.QueueBind(queue.QueueName, Constants.WebServiceAdapterExchange, "", new Dictionary<String, Object>());
-                    var consumer = new QueueingBasicConsumer(channel);
-                    channel.BasicConsume(queue.QueueName, false, consumer);
-                    var tasks = new List<Task>();
-                    const int WAIT_TIMEOUT_MILLISECOND = 500;
-                    while (!serviceStopEvent.WaitOne(0)) {
-                        if (tasks.Count >= Environment.ProcessorCount * 4) {
-                            var finished = Task.WaitAny(tasks.ToArray(), WAIT_TIMEOUT_MILLISECOND);
-                            if (finished >= 0) {
-                                tasks.RemoveAt(finished);
-                                logger.Debug("Request message processed.");
+                        var queue = channel.QueueDeclare();
+                        channel.QueueBind(queue.QueueName, Constants.WebServiceAdapterExchange, "", new Dictionary<String, Object>());
+                        var consumer = new QueueingBasicConsumer(channel);
+                        channel.BasicConsume(queue.QueueName, false, consumer);
+                        var tasks = new List<Task>();
+                        const int WAIT_TIMEOUT_MILLISECOND = 500;
+                        while (!serviceStopEvent.WaitOne(0)) {
+                            if (tasks.Count >= Environment.ProcessorCount * 4) {
+                                var finished = Task.WaitAny(tasks.ToArray(), WAIT_TIMEOUT_MILLISECOND);
+                                if (finished >= 0) {
+                                    tasks.RemoveAt(finished);
+                                    logger.Debug("Request message processed.");
+                                } else {
+                                    logger.Debug("Waiting for: tasks to finish; exit signal.");
+                                }
                             } else {
-                                logger.Debug("Waiting for: tasks to finish; exit signal.");
-                            }
-                        } else {
-                            Client.Events.BasicDeliverEventArgs msg;
-                            if (consumer.Queue.Dequeue(WAIT_TIMEOUT_MILLISECOND, out msg)) {
-                                logger.Debug("Request message arrived...");
-                                tasks.Add(Task.Factory.StartNew(() => { HandleRabbitMQRequestMessage(msg, connection.CreateModel()); }, TaskCreationOptions.LongRunning));
-                                channel.BasicAck(msg.DeliveryTag, false);
-                            } else {
-                                //logger.Debug("Waiting for: messages to arrive; exit signal.");
+                                Client.Events.BasicDeliverEventArgs msg;
+                                if (consumer.Queue.Dequeue(WAIT_TIMEOUT_MILLISECOND, out msg)) {
+                                    logger.Debug("Request message arrived...");
+                                    tasks.Add(Task.Factory.StartNew(() => { HandleRabbitMQRequestMessage(msg, connection.CreateModel()); }, TaskCreationOptions.LongRunning));
+                                    channel.BasicAck(msg.DeliveryTag, false);
+                                } else {
+                                    //logger.Debug("Waiting for: messages to arrive; exit signal.");
+                                }
                             }
                         }
                     }
                 }
-            }
-
             } catch (Exception e) {
                 logger.Error(e.Message);
             }
@@ -159,7 +158,6 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
         private static HttpWebRequest RabbitMQMessageToHttpRequest(RabbitMQMessage msg) {
             logger.Debug("Converting AMQP Message to Http Request...");
             
-            //var gatewayUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestGatewayUrl]);
             var destinationUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestDestinationUrl]);
 
             logger.DebugFormat("Destination URL: {0}", destinationUrl);
