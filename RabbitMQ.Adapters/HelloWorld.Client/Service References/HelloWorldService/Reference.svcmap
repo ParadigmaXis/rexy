@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ReferenceGroup xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" ID="e04554a9-0842-46e3-b188-e75687f16aaa" xmlns="urn:schemas-microsoft-com:xml-wcfservicemap">
+<ReferenceGroup xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" ID="7c0ad9da-466f-4d88-9103-0aab0fc7f857" xmlns="urn:schemas-microsoft-com:xml-wcfservicemap">
   <ClientOptions>
     <GenerateAsynchronousMethods>false</GenerateAsynchronousMethods>
     <GenerateTaskBasedAsynchronousMethod>true</GenerateTaskBasedAsynchronousMethod>
@@ -9,9 +9,7 @@
     <GenerateInternalTypes>false</GenerateInternalTypes>
     <GenerateMessageContracts>false</GenerateMessageContracts>
     <NamespaceMappings />
-    <CollectionMappings>
-      <CollectionMapping TypeName="System.Collections.Generic.List`1" Category="List" />
-    </CollectionMappings>
+    <CollectionMappings />
     <GenerateSerializableTypes>true</GenerateSerializableTypes>
     <Serializer>Auto</Serializer>
     <UseSerializerForFaults>true</UseSerializerForFaults>
@@ -21,10 +19,11 @@
     <ServiceContractMappings />
   </ClientOptions>
   <MetadataSources>
-    <MetadataSource Address="http://localhost:8888/helloworld/HelloWorldService.asmx?WSDL" Protocol="http" SourceId="1" />
+    <MetadataSource Address="http://192.168.102.215:8888/HelloWorldService.asmx" Protocol="http" SourceId="1" />
   </MetadataSources>
   <Metadata>
-    <MetadataFile FileName="HelloWorldService.wsdl" MetadataType="Wsdl" ID="80b216d8-3f1f-4d3e-9075-df1d4faeb0ac" SourceId="1" SourceUrl="http://localhost:8888/helloworld/HelloWorldService.asmx?WSDL" />
+    <MetadataFile FileName="HelloWorldService.wsdl" MetadataType="Wsdl" ID="f98a3dc3-287a-42aa-ac96-536874e876d2" SourceId="1" SourceUrl="http://192.168.102.215:8888/HelloWorldService.asmx?wsdl" />
+    <MetadataFile FileName="HelloWorldService.disco" MetadataType="Disco" ID="dcb34564-2073-4371-894d-9758b3e1032b" SourceId="1" SourceUrl="http://192.168.102.215:8888/HelloWorldService.asmx?disco" />
   </Metadata>
   <Extensions>
     <ExtensionFile FileName="configuration91.svcinfo" Name="configuration91.svcinfo" />

@@ -44,7 +44,7 @@ namespace RabbitMQ.Adapters.HttpHandlers.TestFixtures {
         [Test]
         public void CreateBasicProperties()
         {
-            var basicProperties = new ReverseProxyHttpHandler().CreateRequestBasicProperties(this.requestMethod, this.requestGatewayUrl, this.requestDestinationUrl, this.requestHeaders, this.requestIsAuthenticated);
+            var basicProperties = new ReverseProxyHttpHandler().CreateRequestBasicProperties(this.requestMethod, this.requestGatewayUrl, this.requestDestinationUrl, this.requestHeaders, this.requestIsAuthenticated, this.requestLogonUserIdentity);
             Expect(basicProperties, Is.Not.Null);
             Expect(basicProperties.Headers, Is.Not.Null);
             Expect(basicProperties.Headers.Count, Is.EqualTo(4 + this.requestHeaders.Count));
@@ -54,7 +54,7 @@ namespace RabbitMQ.Adapters.HttpHandlers.TestFixtures {
         [Test]
         public void ExtractHttpHeaders()
         {
-            var basicProperties = new ReverseProxyHttpHandler().CreateRequestBasicProperties(this.requestMethod, this.requestGatewayUrl, this.requestDestinationUrl, this.requestHeaders, this.requestIsAuthenticated);
+            var basicProperties = new ReverseProxyHttpHandler().CreateRequestBasicProperties(this.requestMethod, this.requestGatewayUrl, this.requestDestinationUrl, this.requestHeaders, this.requestIsAuthenticated, this.requestLogonUserIdentity);
 
             var headers = basicProperties.GetHttpHeaders();
             Expect(headers.Keys, Is.EquivalentTo(requestHeaders.Keys));

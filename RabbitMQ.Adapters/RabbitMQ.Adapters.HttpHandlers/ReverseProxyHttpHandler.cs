@@ -13,6 +13,7 @@ using System.IO.Compression;
 using System.Xml;
 using RabbitMQ.Adapters.Routes;
 using log4net;
+using System.Security.Principal;
 
 namespace RabbitMQ.Adapters.HttpHandlers {
 
@@ -29,15 +30,14 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         void IHttpHandler.ProcessRequest(HttpContext context) {
             // TODO: log something more useful
             //System.Diagnostics.EventLog.WriteEntry("ASP.NET 4.0.30319.0", String.Format("Redirect {0} to {1}{2}", context.Request.Url, url, context.Request.IsAuthenticated ? " with authentication" : ""));
-            System.IO.File.WriteAllLines("C:\\Users\\ISA-WS\\" + Guid.NewGuid().ToString() + ".txt", new string[0]);
             try {
                 try {
                     if (context.Request.IsAuthenticated) {
                         logger.InfoFormat("Authenticated {0} using {1} at level {2}", context.Request.LogonUserIdentity.Name, context.Request.LogonUserIdentity.AuthenticationType, context.Request.LogonUserIdentity.ImpersonationLevel);
 
                         using (var impersonation = context.Request.LogonUserIdentity.Impersonate()) {
-                            GetResponse(context.Request, context.Response);
-                            System.IO.File.WriteAllLines("C:\\FusionLog\\" + Guid.NewGuid().ToString() + ".txt", new string[0]);
+                            //GetResponse(context.Request, context.Response);
+                            //System.IO.File.WriteAllLines("C:\\FusionLog\\" + Guid.NewGuid().ToString() + ".txt", new string[0]);
                             try {
                                 GetResponse(context.Request, context.Response);
                             } catch (Exception ex) {
@@ -53,6 +53,8 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                     throw new HttpException(504, "Gateway Timeout");
                 }
             } catch (WebException ex) {
+                logger.ErrorFormat("WebException: {0}", ex.Message);
+
                 if (ex.Response != null) {
                     context.Response.StatusCode = (int)(ex.Response as HttpWebResponse).StatusCode;
                     context.Response.StatusDescription = (ex.Response as HttpWebResponse).StatusDescription;
@@ -70,6 +72,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             var basicProperties = HttpRequestToRabbitMQBasicProperties(request);
             var body = request.GetRequestBytes();
             var requestMsg = new RabbitMQMessage(basicProperties, body);
+            
             var responseMsg = PostAndWait(requestMsg);
             ReplaceBodyURLs(responseMsg,
                 GetDestinationURL(proxyTargetPath),
@@ -136,6 +139,7 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                         attr.Value = attr.Value.Replace(destinationUrl.ToString(), proxyTargetUrl.ToString());
                     }
                 } else if (document.IsSoapMessage()) {
+                    logger.Debug("Is SOAP Message.");
                     //TODO: process soap messages. Remove soap envelope?
                 }
             } catch (XmlException ex) {
@@ -146,10 +150,26 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         }
 
         private IBasicProperties HttpRequestToRabbitMQBasicProperties(HttpRequest request) {
-            return CreateRequestBasicProperties(request.HttpMethod, request.Url, GetDestinationURL(GetProxyTargetPath(request)), ExtracthttpRequestHeaders(request), request.IsAuthenticated);
+            logger.Debug("HttpRequestToRabbitMQBasicProperties...");
+
+            var method = request.HttpMethod;
+            var gatewayUrl = request.Url;
+            logger.Debug("requestUrl begin");
+            var requestUrl = GetDestinationURL(GetProxyTargetPath(request));
+            logger.Debug("requestUrl");
+            var isAuthenticated = request.IsAuthenticated;
+            var identity = request.LogonUserIdentity;
+
+            var properties = CreateRequestBasicProperties(method, gatewayUrl, requestUrl, ExtracthttpRequestHeaders(request), isAuthenticated, identity);
+
+            logger.Debug("HttpRequestToRabbitMQBasicProperties done.");
+
+            return properties;
         }
 
-        internal IBasicProperties CreateRequestBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated) {
+        internal IBasicProperties CreateRequestBasicProperties(string requestMethod, Uri requestGatewayUrl, Uri requestDestinationUrl, Dictionary<string, string> requestHeaders, bool requestIsAuthenticated, WindowsIdentity identity) {
+            logger.Debug("Creating Basic Properties...");
+
             var result = new RabbitMQ.Client.Framing.BasicProperties() {
                 Headers = new Dictionary<string, object>()
             };
@@ -158,7 +178,11 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             result.Headers.Add(Constants.RequestGatewayUrl, requestGatewayUrl.ToString());
             result.Headers.Add(Constants.RequestDestinationUrl, requestDestinationUrlWithQuery.ToString());
             result.Headers.Add(Constants.RequestIsAuthenticated, requestIsAuthenticated);
+            result.Headers.Add(Constants.UserPrincipalName, identity.Name);
+
             requestHeaders.ToList().ForEach(kvp => result.Headers.Add(Constants.HttpHeaderPrefix + kvp.Key, kvp.Value));
+
+            logger.Debug("Basic Properties Created.");
             return result;
         }
 
@@ -169,31 +193,39 @@ namespace RabbitMQ.Adapters.HttpHandlers {
         private void RabbitMQMessageToHttpResponse(RabbitMQMessage msg, HttpResponse response) {
             foreach (var kvp in msg.BasicProperties.GetHttpHeaders()) {
                 if ("Content-Type".Equals(kvp.Key)) {
+                    logger.DebugFormat("Content-Type: {0}", kvp.Value);
                     response.ContentType = kvp.Value;
                 } else {
                     response.Headers.Add(kvp.Key, kvp.Value);
                 }
             }
+
             if (msg.BasicProperties.Headers.ContainsKey(Constants.ResponseStatusCode)) {
                 response.StatusCode = (int)msg.BasicProperties.Headers[Constants.ResponseStatusCode];
                 response.StatusDescription = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.ResponseStatusDescription]);
             }
+
+            logger.DebugFormat("Writing {0} bytes to response stream...", msg.Body.Length);
+
             if (msg.Body.Length > 0) {
                 var outStream = response.OutputStream;
                 outStream.Write(msg.Body, 0, msg.Body.Length);
                 outStream.Close();
             }
-            return;
+
+            logger.Debug("Bytes written.");
         }
 
         private RabbitMQMessage PostAndWait(RabbitMQMessage requestMsg) {
+            logger.Debug("Sending AMQP message...");
+
             using (var channel = Global.Connection.CreateModel()) {
-                channel.BasicAcks += (sender, e) => Debug.WriteLine(string.Format("RPHH::ACK {0} {1}", e.DeliveryTag, e.Multiple));
-                channel.BasicNacks += (sender, e) => Debug.WriteLine(string.Format("RPHH::NACK {0} {1} {2}", e.DeliveryTag, e.Multiple, e.Requeue));
-                channel.BasicRecoverOk += (sender, e) => Debug.WriteLine(string.Format("RPHH::RECOVER_OK"));
-                channel.BasicReturn += (sender, e) => Debug.WriteLine(string.Format("RPHH::RETURN ..."));
-                channel.CallbackException += (sender, e) => Debug.WriteLine(string.Format("RPHH::CALLBACK_EXCEPTION {0}", e.Exception.Message));
-                channel.ModelShutdown += (sender, e) => Debug.WriteLine(string.Format("RPHH::MODEL_SHUTDOWN ..."));
+                channel.BasicAcks += (sender, e) => logger.Debug(string.Format("RPHH::ACK {0} {1}", e.DeliveryTag, e.Multiple));
+                channel.BasicNacks += (sender, e) => logger.Debug(string.Format("RPHH::NACK {0} {1} {2}", e.DeliveryTag, e.Multiple, e.Requeue));
+                channel.BasicRecoverOk += (sender, e) => logger.Debug(string.Format("RPHH::RECOVER_OK"));
+                channel.BasicReturn += (sender, e) => logger.Debug(string.Format("RPHH::RETURN ..."));
+                channel.CallbackException += (sender, e) => logger.Debug(string.Format("RPHH::CALLBACK_EXCEPTION {0}", e.Exception.Message));
+                channel.ModelShutdown += (sender, e) => logger.Debug(string.Format("RPHH::MODEL_SHUTDOWN ..."));
 
                 var privateQueue = channel.QueueDeclare();
                 var consumer = new QueueingBasicConsumer(channel);
@@ -203,25 +235,25 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 requestMsg.BasicProperties.ReplyTo = privateQueue.QueueName;
                 channel.BasicPublish(new PublicationAddress(ExchangeType.Headers, Constants.WebServiceAdapterExchange, ""), requestMsg.BasicProperties, requestMsg.Body);
 
+                logger.Debug("AMQP message sent.");
+
                 BasicDeliverEventArgs msg = null;
-                var provider = new WindowsAuthenticationProvider(
-                    (basicProperties, body) => { channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body); }
-                    );
-                while (consumer.Queue.Dequeue(600000, out msg)) {
-                    if (provider.IsAuthenticationMessage(msg)) {
-                        provider.HandleAuthenticationMessage(privateQueue.QueueName, msg);
-                    } else {
-                        //assert msg.BasicProperties.CorrelationId == basicProperties.CorrelationId
-                        Debug.WriteLine("Got a reply!");
-                        return new RabbitMQMessage {
-                            BasicProperties = msg.BasicProperties,
-                            Body = msg.Body
-                        };
-                    }
+                //var provider = new WindowsAuthenticationProvider(
+                //    (basicProperties, body) => { channel.BasicPublish("", msg.BasicProperties.ReplyTo, basicProperties, body); }
+                //    );
+                var timeout = !consumer.Queue.Dequeue(600000, out msg);
+
+                if (timeout) {
+                    logger.Warn("Timeout waiting for response.");
+                    throw new QueueTimeoutException();
                 }
-                Debug.WriteLine("Timeout");
-                // TODO: log timeout
-                throw new QueueTimeoutException();
+
+                logger.DebugFormat("Got a reply: {0}", Constants.GetUTF8String(msg.Body));
+
+                return new RabbitMQMessage {
+                    BasicProperties = msg.BasicProperties,
+                    Body = msg.Body
+                };
             }
         }
     }

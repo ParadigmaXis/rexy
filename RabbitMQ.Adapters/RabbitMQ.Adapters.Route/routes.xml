@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <routes>
   <route name="webservice1">
-    <path>helloworld/HelloWorldService.asmx</path>
-    <destination>http://localhost:8888/helloworld/HelloWorldService.asmx</destination>
+    <path>HelloWorld.Services/HelloWorldService.asmx</path>
+    <destination>http://dc:8888/HelloWorldService.asmx</destination>
   </route>
   <route name="webservice2">
     <path>test/TestService.asmx</path>

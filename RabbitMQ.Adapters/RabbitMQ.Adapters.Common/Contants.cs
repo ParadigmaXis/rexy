@@ -47,6 +47,7 @@ namespace RabbitMQ.Adapters.Common {
         public const String RequestDestinationUrl = "request-DestinationUrl";
         public const String RequestMethod = "request-Method";
         public const String RequestIsAuthenticated = "request-Authorization";
+        public const String UserPrincipalName = "request-UserPrincipalName";
 
         public const String ResponseStatusCode = "response-StatusCode";
         public const String ResponseStatusDescription = "response-StatusDescription";

@@ -1,4 +1,5 @@
-﻿using RabbitMQ.Adapters.Common;
+﻿using log4net;
+using RabbitMQ.Adapters.Common;
 using RabbitMQ.Client;
 using System;
 using System.Collections.Generic;
@@ -6,12 +7,15 @@ using System.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Security.Principal;
 using System.ServiceProcess;
 using System.Threading.Tasks;
 
 namespace RabbitMQ.Adapters.WebServiceCaller {
 
     public partial class WebServiceCallerService : ServiceBase {
+        private static readonly ILog logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private System.Threading.Thread serviceThread;
         private System.Threading.ManualResetEvent serviceStopEvent = new System.Threading.ManualResetEvent(false);
         public WebServiceCallerService() {
@@ -19,8 +23,10 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
         }
 
         protected override void OnStart(string[] args) {
+            logger.Info("Starting WebService Caller Service...");
             serviceThread = new System.Threading.Thread(Main);
             serviceThread.Start();
+            logger.Info("WebService Caller Service started.");
         }
 
         protected override void OnStop() {
@@ -30,6 +36,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
         }
 
         public void Main() {
+            try { 
             var factory = new ConnectionFactory {
                 HostName = ConfigurationManager.AppSettings["HostName"],
                 VirtualHost = ConfigurationManager.AppSettings["VirtualHost"],
@@ -56,66 +63,85 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                             var finished = Task.WaitAny(tasks.ToArray(), WAIT_TIMEOUT_MILLISECOND);
                             if (finished >= 0) {
                                 tasks.RemoveAt(finished);
-                                Console.WriteLine("Request message processed.");
+                                logger.Debug("Request message processed.");
                             } else {
-                                Console.WriteLine("Waiting for: tasks to finish; exit signal.");
+                                logger.Debug("Waiting for: tasks to finish; exit signal.");
                             }
                         } else {
                             Client.Events.BasicDeliverEventArgs msg;
                             if (consumer.Queue.Dequeue(WAIT_TIMEOUT_MILLISECOND, out msg)) {
-                                Console.WriteLine("Request message arrived...");
+                                logger.Debug("Request message arrived...");
                                 tasks.Add(Task.Factory.StartNew(() => { HandleRabbitMQRequestMessage(msg, connection.CreateModel()); }, TaskCreationOptions.LongRunning));
                                 channel.BasicAck(msg.DeliveryTag, false);
                             } else {
-                                Console.WriteLine("Waiting for: messages to arrive; exit signal.");
+                                //logger.Debug("Waiting for: messages to arrive; exit signal.");
                             }
                         }
                     }
                 }
             }
+
+            } catch (Exception e) {
+                logger.Error(e.Message);
+            }
         }
 
         private void HandleRabbitMQRequestMessage(Client.Events.BasicDeliverEventArgs msg, IModel channel) {
-            var requestMsg = new RabbitMQMessage(msg.BasicProperties, msg.Body);
-            var request = RabbitMQMessageToHttpRequest(requestMsg);
+            logger.Debug("Handling Request Message...");
 
-            var requestIsAuthenticated = (bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated];
-            var routingKey = msg.BasicProperties.ReplyTo;
-            var correlationId = msg.BasicProperties.CorrelationId;
+            var userPrincipalName = NormalizeUserPrincipalName(Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.UserPrincipalName]));
+            msg.BasicProperties.Headers.Remove(Constants.UserPrincipalName);
 
-            var response = CallWebservice(request, () => {
-                if (requestIsAuthenticated) {
-                    return new RabbitMQWindowsAuthenticator(channel, routingKey);
-                }else {
-                    return new RabbitMQAnonimousAuthenticator();
+            WindowsIdentity identity = null;
+            if (userPrincipalName != string.Empty) {
+                identity = new WindowsIdentity(userPrincipalName);
+            } else {
+                identity = WindowsIdentity.GetAnonymous();
+            }
+
+            using (identity.Impersonate()) {
+                logger.DebugFormat("Now I'm {0}.", WindowsIdentity.GetCurrent().Name);
+
+                var requestMsg = new RabbitMQMessage(msg.BasicProperties, msg.Body);
+
+                var request = RabbitMQMessageToHttpRequest(requestMsg);
+                var requestIsAuthenticated = (bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated];
+                var routingKey = msg.BasicProperties.ReplyTo;
+                var correlationId = msg.BasicProperties.CorrelationId;
+
+                var responseMsg = new RabbitMQMessage();
+
+                try {
+                    logger.Debug("Calling WebService...");
+                    var response = (HttpWebResponse)request.GetResponse();
+                    logger.Debug("WebService Called.");
+                    responseMsg = HttpResponseToRabbitMQMessage(response);
+                    logger.DebugFormat("Response received: {0}", Constants.GetUTF8String(responseMsg.Body));
+                } catch (Exception e) {
+                    logger.ErrorFormat("Error calling service: {0}", e.Message);
                 }
-            });
-            var responseMsg = HttpResponseToRabbitMQMessage(response);
-            responseMsg.BasicProperties.CorrelationId = correlationId;
-            channel.BasicPublish("", routingKey, responseMsg.BasicProperties, responseMsg.Body);
+
+                responseMsg.BasicProperties.CorrelationId = correlationId;
+                channel.BasicPublish("", routingKey, responseMsg.BasicProperties, responseMsg.Body);
+            }
+
+            logger.Debug("Request Message Handle.");
         }
 
-        private HttpWebResponse CallWebservice(HttpWebRequest request, Func<IRabbitMQAuthenticator> GetAuthenticator) {
-            WebResponse response = null;
-            try {
-                using (var authenticator = GetAuthenticator()) {
-                    authenticator.Authenticate(request);
-                    response = request.GetResponse();
-                }
-            } catch (WebException ex) {
-                Console.WriteLine(ex.Message);
-                var exx = ex.InnerException;
-                while (exx != null) {
-                    Console.WriteLine("\t{0}", exx.Message);
-                    exx = exx.InnerException;
-                }
-                if (ex.Response != null) {
-                    response = ex.Response;
-                } else {
-                    response = null;
-                }
+        private string NormalizeUserPrincipalName(string userPrincipalName) {
+            var ret = userPrincipalName;
+
+            logger.DebugFormat("Normalizing UserPrincipalName {0}...", ret);
+            
+            if (userPrincipalName.Contains('\\')) {
+                var domain = userPrincipalName.Split('\\')[0];
+                var username = userPrincipalName.Split('\\')[1];
+                ret = string.Format("{0}@{1}", username, domain);
             }
-            return (HttpWebResponse)response;
+
+            logger.DebugFormat("Normalized UserPrincipalName: {0}", ret);
+
+            return ret;
         }
 
         private RabbitMQMessage HttpResponseToRabbitMQMessage(HttpWebResponse response) {
@@ -131,11 +157,21 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
         }
 
         private static HttpWebRequest RabbitMQMessageToHttpRequest(RabbitMQMessage msg) {
+            logger.Debug("Converting AMQP Message to Http Request...");
+            
             //var gatewayUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestGatewayUrl]);
             var destinationUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestDestinationUrl]);
-            var request = (HttpWebRequest)WebRequest.Create(destinationUrl);
 
-            request.Method = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestMethod]);
+            logger.DebugFormat("Destination URL: {0}", destinationUrl);
+
+            var request = (HttpWebRequest)WebRequest.Create(destinationUrl);
+            request.Credentials = CredentialCache.DefaultNetworkCredentials;
+            request.Method = Constants.GetUTF8String((byte[])msg.BasicProperties.Headers[Constants.RequestMethod]);
+            
+            logger.DebugFormat("Method: {0}", request.Method);
+            logger.DebugFormat("ContentLength: {0}", msg.Body.Length);
+            logger.DebugFormat("Content: {0}", Constants.GetUTF8String(msg.Body));
+
             RecoverHttpHeadersToRequest(msg.BasicProperties.GetHttpHeaders(), request);
             request.ContentLength = msg.Body.Length;
             if (msg.Body.Length > 0) {
@@ -143,11 +179,16 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                 requestStream.Write(msg.Body, 0, msg.Body.Length);
                 requestStream.Close();
             }
+
+            logger.Debug("AMQP Message converted to Http Request.");
+
             return request;
         }
 
         private static void RecoverHttpHeadersToRequest(IDictionary<string, string> httpHeaders, HttpWebRequest request) {
             foreach (var kvp in httpHeaders) {
+                logger.DebugFormat("Header {0} - {1}", kvp.Key, kvp.Value);
+
                 if (kvp.Key == "Authorization") {
                     continue;
                 }

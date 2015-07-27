@@ -1,6 +1,9 @@
-﻿using System;
+﻿using log4net;
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Security.Principal;
 using System.Web;
 using System.Web.Services;
 
@@ -13,22 +16,36 @@ namespace HelloWorld.Services {
     [System.ComponentModel.ToolboxItem(false)]
     public class HelloWorldService: System.Web.Services.WebService {
 
+        private static readonly ILog logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         [WebMethod]
         public string HelloWorld(string message) {
+            logger.Debug("Handling Hello World Request...");
+
             if (Context.Request.IsAuthenticated) {
                 using (var impersonate = Context.Request.LogonUserIdentity.Impersonate()) {
                     try {
-                        System.IO.File.WriteAllLines("C:\\FusionLog\\" + Guid.NewGuid().ToString() + ".txt", new string[0]);
+                        var filename = WindowsIdentity.GetCurrent().Name + "footprints.txt";
+                        var footprint = DateTime.Now.ToString("O");
+                        System.IO.File.AppendAllLines("C:\\ISA\\HelloWorldService\\" + filename, new string[1] { footprint });
                     } catch (Exception ex) {
-                        return ex.Message;
+                        logger.Error(ex.Message);
                     }
                 }
             }
+
             string userName = Context.Request.IsAuthenticated ? Context.Request.LogonUserIdentity.Name : "<anonymous>";
+            var ret = "Hello to " + userName;
+
             if (message == null) {
-                return "Hello to " + userName + " with null argument!";
+                ret += " with null argument!";
+            } else {
+                ret += " with argument: " + message;
             }
-            return "Hello to " + userName + " with argument: " + message;
+
+            logger.Debug("Hello World Request handled.");
+
+            return ret;
         }
     }
 }

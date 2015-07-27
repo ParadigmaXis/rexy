@@ -8,19 +8,19 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace HelloWorld.Client.ServiceReferences {
+namespace HelloWorld.Client.HelloWorldService {
     
     
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
-    [System.ServiceModel.ServiceContractAttribute(Namespace="http://www.paradigmaxis.pt/isa/2015/06/08/hello-world/", ConfigurationName="ServiceReferences.HelloWorldServiceSoap")]
+    [System.ServiceModel.ServiceContractAttribute(Namespace="http://www.paradigmaxis.pt/isa/2015/06/08/hello-world/", ConfigurationName="HelloWorldService.HelloWorldServiceSoap")]
     public interface HelloWorldServiceSoap {
         
         // CODEGEN: Generating message contract since element name message from namespace http://www.paradigmaxis.pt/isa/2015/06/08/hello-world/ is not marked nillable
         [System.ServiceModel.OperationContractAttribute(Action="http://www.paradigmaxis.pt/isa/2015/06/08/hello-world/HelloWorld", ReplyAction="*")]
-        HelloWorld.Client.ServiceReferences.HelloWorldResponse HelloWorld(HelloWorld.Client.ServiceReferences.HelloWorldRequest request);
+        HelloWorld.Client.HelloWorldService.HelloWorldResponse HelloWorld(HelloWorld.Client.HelloWorldService.HelloWorldRequest request);
         
         [System.ServiceModel.OperationContractAttribute(Action="http://www.paradigmaxis.pt/isa/2015/06/08/hello-world/HelloWorld", ReplyAction="*")]
-        System.Threading.Tasks.Task<HelloWorld.Client.ServiceReferences.HelloWorldResponse> HelloWorldAsync(HelloWorld.Client.ServiceReferences.HelloWorldRequest request);
+        System.Threading.Tasks.Task<HelloWorld.Client.HelloWorldService.HelloWorldResponse> HelloWorldAsync(HelloWorld.Client.HelloWorldService.HelloWorldRequest request);
     }
     
     [System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -30,12 +30,12 @@ namespace HelloWorld.Client.ServiceReferences {
     public partial class HelloWorldRequest {
         
         [System.ServiceModel.MessageBodyMemberAttribute(Name="HelloWorld", Namespace="http://www.paradigmaxis.pt/isa/2015/06/08/hello-world/", Order=0)]
-        public HelloWorld.Client.ServiceReferences.HelloWorldRequestBody Body;
+        public HelloWorld.Client.HelloWorldService.HelloWorldRequestBody Body;
         
         public HelloWorldRequest() {
         }
         
-        public HelloWorldRequest(HelloWorld.Client.ServiceReferences.HelloWorldRequestBody Body) {
+        public HelloWorldRequest(HelloWorld.Client.HelloWorldService.HelloWorldRequestBody Body) {
             this.Body = Body;
         }
     }
@@ -64,12 +64,12 @@ namespace HelloWorld.Client.ServiceReferences {
     public partial class HelloWorldResponse {
         
         [System.ServiceModel.MessageBodyMemberAttribute(Name="HelloWorldResponse", Namespace="http://www.paradigmaxis.pt/isa/2015/06/08/hello-world/", Order=0)]
-        public HelloWorld.Client.ServiceReferences.HelloWorldResponseBody Body;
+        public HelloWorld.Client.HelloWorldService.HelloWorldResponseBody Body;
         
         public HelloWorldResponse() {
         }
         
-        public HelloWorldResponse(HelloWorld.Client.ServiceReferences.HelloWorldResponseBody Body) {
+        public HelloWorldResponse(HelloWorld.Client.HelloWorldService.HelloWorldResponseBody Body) {
             this.Body = Body;
         }
     }
@@ -92,12 +92,12 @@ namespace HelloWorld.Client.ServiceReferences {
     }
     
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
-    public interface HelloWorldServiceSoapChannel : HelloWorld.Client.ServiceReferences.HelloWorldServiceSoap, System.ServiceModel.IClientChannel {
+    public interface HelloWorldServiceSoapChannel : HelloWorld.Client.HelloWorldService.HelloWorldServiceSoap, System.ServiceModel.IClientChannel {
     }
     
     [System.Diagnostics.DebuggerStepThroughAttribute()]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
-    public partial class HelloWorldServiceSoapClient : System.ServiceModel.ClientBase<HelloWorld.Client.ServiceReferences.HelloWorldServiceSoap>, HelloWorld.Client.ServiceReferences.HelloWorldServiceSoap {
+    public partial class HelloWorldServiceSoapClient : System.ServiceModel.ClientBase<HelloWorld.Client.HelloWorldService.HelloWorldServiceSoap>, HelloWorld.Client.HelloWorldService.HelloWorldServiceSoap {
         
         public HelloWorldServiceSoapClient() {
         }
@@ -119,28 +119,28 @@ namespace HelloWorld.Client.ServiceReferences {
         }
         
         [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
-        HelloWorld.Client.ServiceReferences.HelloWorldResponse HelloWorld.Client.ServiceReferences.HelloWorldServiceSoap.HelloWorld(HelloWorld.Client.ServiceReferences.HelloWorldRequest request) {
+        HelloWorld.Client.HelloWorldService.HelloWorldResponse HelloWorld.Client.HelloWorldService.HelloWorldServiceSoap.HelloWorld(HelloWorld.Client.HelloWorldService.HelloWorldRequest request) {
             return base.Channel.HelloWorld(request);
         }
         
         public string HelloWorld(string message) {
-            HelloWorld.Client.ServiceReferences.HelloWorldRequest inValue = new HelloWorld.Client.ServiceReferences.HelloWorldRequest();
-            inValue.Body = new HelloWorld.Client.ServiceReferences.HelloWorldRequestBody();
+            HelloWorld.Client.HelloWorldService.HelloWorldRequest inValue = new HelloWorld.Client.HelloWorldService.HelloWorldRequest();
+            inValue.Body = new HelloWorld.Client.HelloWorldService.HelloWorldRequestBody();
             inValue.Body.message = message;
-            HelloWorld.Client.ServiceReferences.HelloWorldResponse retVal = ((HelloWorld.Client.ServiceReferences.HelloWorldServiceSoap)(this)).HelloWorld(inValue);
+            HelloWorld.Client.HelloWorldService.HelloWorldResponse retVal = ((HelloWorld.Client.HelloWorldService.HelloWorldServiceSoap)(this)).HelloWorld(inValue);
             return retVal.Body.HelloWorldResult;
         }
         
         [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
-        System.Threading.Tasks.Task<HelloWorld.Client.ServiceReferences.HelloWorldResponse> HelloWorld.Client.ServiceReferences.HelloWorldServiceSoap.HelloWorldAsync(HelloWorld.Client.ServiceReferences.HelloWorldRequest request) {
+        System.Threading.Tasks.Task<HelloWorld.Client.HelloWorldService.HelloWorldResponse> HelloWorld.Client.HelloWorldService.HelloWorldServiceSoap.HelloWorldAsync(HelloWorld.Client.HelloWorldService.HelloWorldRequest request) {
             return base.Channel.HelloWorldAsync(request);
         }
         
-        public System.Threading.Tasks.Task<HelloWorld.Client.ServiceReferences.HelloWorldResponse> HelloWorldAsync(string message) {
-            HelloWorld.Client.ServiceReferences.HelloWorldRequest inValue = new HelloWorld.Client.ServiceReferences.HelloWorldRequest();
-            inValue.Body = new HelloWorld.Client.ServiceReferences.HelloWorldRequestBody();
+        public System.Threading.Tasks.Task<HelloWorld.Client.HelloWorldService.HelloWorldResponse> HelloWorldAsync(string message) {
+            HelloWorld.Client.HelloWorldService.HelloWorldRequest inValue = new HelloWorld.Client.HelloWorldService.HelloWorldRequest();
+            inValue.Body = new HelloWorld.Client.HelloWorldService.HelloWorldRequestBody();
             inValue.Body.message = message;
-            return ((HelloWorld.Client.ServiceReferences.HelloWorldServiceSoap)(this)).HelloWorldAsync(inValue);
+            return ((HelloWorld.Client.HelloWorldService.HelloWorldServiceSoap)(this)).HelloWorldAsync(inValue);
         }
     }
 }

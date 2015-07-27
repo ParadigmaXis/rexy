@@ -20,7 +20,7 @@ namespace HelloWorld.Client {
         }
         static void RunIt() {
             var start = DateTime.UtcNow;
-            var client = new ServiceReferences.HelloWorldServiceSoapClient("HelloWorldServiceSoap");
+            var client = new HelloWorldService.HelloWorldServiceSoapClient("HelloWorldServiceSoap");
             client.ClientCredentials.UseIdentityConfiguration = true;
             client.ClientCredentials.Windows.AllowedImpersonationLevel = System.Security.Principal.TokenImpersonationLevel.Impersonation;
             client.ClientCredentials.Windows.ClientCredential = System.Net.CredentialCache.DefaultNetworkCredentials;
