@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("RabbitMQ.Adapters.Routes")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("RabbitMQ.Adapters.Routes")]
-[assembly: AssemblyCopyright("Copyright ©  2015")]
+[assembly: AssemblyCompany("ParadigmaXis")]
+[assembly: AssemblyProduct("RabbitMQ.Adapters")]
+[assembly: AssemblyCopyright("Copyright © ParadigmaXis 2015")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("RabbitMQ.Adapters.WebServiceCaller")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("RabbitMQ.Adapters.WebServiceCaller")]
-[assembly: AssemblyCopyright("Copyright ©  2015")]
+[assembly: AssemblyCompany("ParadigmaXis")]
+[assembly: AssemblyProduct("RabbitMQ.Adapters")]
+[assembly: AssemblyCopyright("Copyright © ParadigmaXis 2015")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
