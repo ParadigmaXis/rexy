@@ -92,39 +92,49 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
             msg.BasicProperties.Headers.Remove(Constants.UserPrincipalName);
 
             WindowsIdentity identity = null;
-            if (userPrincipalName != string.Empty) {
+            try {
                 identity = new WindowsIdentity(userPrincipalName);
-            } else {
-                identity = WindowsIdentity.GetAnonymous();
+            } catch(Exception e) {
+                logger.Error(e);
             }
 
-            using (identity.Impersonate()) {
-                logger.DebugFormat("Now I'm {0}.", WindowsIdentity.GetCurrent().Name);
+            if (identity != null) {
+                using (identity.Impersonate()) {
+                    logger.DebugFormat("Now I'm {0}.", WindowsIdentity.GetCurrent().Name);
+                    logger.DebugFormat("Impersonation level: {0}.", identity.ImpersonationLevel);
 
-                var requestMsg = new RabbitMQMessage(msg.BasicProperties, msg.Body);
-
-                var request = RabbitMQMessageToHttpRequest(requestMsg);
-                var requestIsAuthenticated = (bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated];
-                var routingKey = msg.BasicProperties.ReplyTo;
-                var correlationId = msg.BasicProperties.CorrelationId;
-
-                var responseMsg = new RabbitMQMessage();
-
-                try {
-                    logger.Debug("Calling WebService...");
-                    var response = (HttpWebResponse)request.GetResponse();
-                    logger.Debug("WebService Called.");
-                    responseMsg = HttpResponseToRabbitMQMessage(response);
-                    logger.DebugFormat("Response received: {0}", Constants.GetUTF8String(responseMsg.Body));
-                } catch (Exception e) {
-                    logger.ErrorFormat("Error calling service: {0}", e.Message);
+                    CallWebService(msg, channel);
                 }
-
-                responseMsg.BasicProperties.CorrelationId = correlationId;
-                channel.BasicPublish("", routingKey, responseMsg.BasicProperties, responseMsg.Body);
+            } else {
+                CallWebService(msg, channel);
             }
 
             logger.Debug("Request Message Handle.");
+        }
+
+        private void CallWebService(Client.Events.BasicDeliverEventArgs msg, IModel channel) {
+            var requestMsg = new RabbitMQMessage(msg.BasicProperties, msg.Body);
+
+            var request = RabbitMQMessageToHttpRequest(requestMsg);
+            var requestIsAuthenticated = (bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated];
+            var routingKey = msg.BasicProperties.ReplyTo;
+            var correlationId = msg.BasicProperties.CorrelationId;
+
+            var responseMsg = new RabbitMQMessage();
+
+            try {
+                logger.Debug("Calling WebService...");
+                var response = (HttpWebResponse)request.GetResponse();
+                logger.Debug("WebService Called.");
+                logger.DebugFormat("Content length: {0}.", response.ContentLength);
+                responseMsg = HttpResponseToRabbitMQMessage(response);
+                logger.DebugFormat("Response received: {0}", Constants.GetUTF8String(responseMsg.Body));
+            } catch (Exception e) {
+                logger.ErrorFormat("Error calling service: {0}", e.Message);
+            }
+
+            responseMsg.BasicProperties.CorrelationId = correlationId;
+            channel.BasicPublish("", routingKey, responseMsg.BasicProperties, responseMsg.Body);
         }
 
         private string NormalizeUserPrincipalName(string userPrincipalName) {
