@@ -24,9 +24,10 @@ namespace RabbitMQ.Adapters.Common {
         public static byte[] GetResponseBytes(this WebResponse response) {
             var buffer = new byte[response.ContentLength];
             if (response.ContentLength > 0) {
-                var responseStream = response.GetResponseStream();
-                responseStream.Read(buffer, 0, buffer.Length);
-                responseStream.Close();
+                var output = new MemoryStream(buffer);
+                using (var responseStream = response.GetResponseStream()) {
+                    responseStream.CopyTo(output);
+                }
             }
             return buffer;
         }
