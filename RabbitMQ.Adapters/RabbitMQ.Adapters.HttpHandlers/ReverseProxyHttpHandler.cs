@@ -11,6 +11,7 @@ using System.IO;
 using System.Text;
 using System.IO.Compression;
 using System.Xml;
+using System.Xml.Linq;
 using RabbitMQ.Adapters.Routes;
 using log4net;
 using System.Security.Principal;
@@ -105,28 +106,28 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             }
 
             try {
-                var document = System.Xml.Linq.XDocument.Parse(body);
+                var document = XDocument.Parse(body);
                 if (document.IsWsdl()) {
                     logger.Debug("Is WSDL Content.");
                     var ports = document.Root
-                        .Descendants(System.Xml.Linq.XName.Get("service", "http://schemas.xmlsoap.org/wsdl/"))
-                        .SelectMany(d => d.Descendants(System.Xml.Linq.XName.Get("port", "http://schemas.xmlsoap.org/wsdl/")))
+                        .Descendants(XName.Get("service", "http://schemas.xmlsoap.org/wsdl/"))
+                        .SelectMany(d => d.Descendants(XName.Get("port", "http://schemas.xmlsoap.org/wsdl/")))
                         .ToList();
-                    var nodes = ports.SelectMany(d => d.Descendants(System.Xml.Linq.XName.Get("address", "http://schemas.xmlsoap.org/wsdl/soap/")));
-                    var nodes12 = ports.SelectMany(d => d.Descendants(System.Xml.Linq.XName.Get("address", "http://schemas.xmlsoap.org/wsdl/soap12/")));
+                    var nodes = ports.SelectMany(d => d.Descendants(XName.Get("address", "http://schemas.xmlsoap.org/wsdl/soap/")));
+                    var nodes12 = ports.SelectMany(d => d.Descendants(XName.Get("address", "http://schemas.xmlsoap.org/wsdl/soap12/")));
                     foreach (var node in nodes.Concat(nodes12)) {
-                        var attr = node.Attribute(System.Xml.Linq.XName.Get("location"));
+                        var attr = node.Attribute(XName.Get("location"));
                         attr.Value = attr.Value.Replace(destinationUrl.ToString(), proxyTargetUrl.ToString());
                     }
 
                     var schemas = document.Root
-                        .Descendants(System.Xml.Linq.XName.Get("schema", "http://www.w3.org/2001/XMLSchema"))
+                        .Descendants(XName.Get("schema", "http://www.w3.org/2001/XMLSchema"))
                         .ToList();
 
-                    var includes = schemas.SelectMany(d => d.Descendants(System.Xml.Linq.XName.Get("include", "http://www.w3.org/2001/XMLSchema")));
-                    var imports = schemas.SelectMany(d => d.Descendants(System.Xml.Linq.XName.Get("import", "http://www.w3.org/2001/XMLSchema")));
+                    var includes = schemas.SelectMany(d => d.Descendants(XName.Get("include", "http://www.w3.org/2001/XMLSchema")));
+                    var imports = schemas.SelectMany(d => d.Descendants(XName.Get("import", "http://www.w3.org/2001/XMLSchema")));
                     foreach (var i in includes.Concat(imports)) {
-                        var attr = i.Attribute(System.Xml.Linq.XName.Get("schemaLocation"));
+                        var attr = i.Attribute(XName.Get("schemaLocation"));
                         attr.Value = attr.Value.Replace(destinationUrl.ToString(), proxyTargetUrl.ToString());
                     }
 
