@@ -62,6 +62,12 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                 }
                 context.Response.End();
                 return;
+            } catch (RouteNotFoundException ex) {
+                logger.ErrorFormat("RouteNotFoundException: {0} {1}", ex.Message, ex.Route);
+                context.Response.StatusCode = 404;
+                context.Response.StatusDescription = "Not found.";
+                context.Response.Write("404 Route not found.");
+                context.Response.End();
             }
 
             logger.Debug("Request processed.");
@@ -91,7 +97,11 @@ namespace RabbitMQ.Adapters.HttpHandlers {
 
         private Uri GetDestinationURL(string targetProxyPath) {
             logger.DebugFormat("GetDestinationURL({0})", targetProxyPath);
-            return Api.GetApi.GetRoute(targetProxyPath).Destination;
+            var route = Api.GetApi.GetRoute(targetProxyPath);
+            if (route == null) {
+                throw new RouteNotFoundException(targetProxyPath);
+            }
+            return route.Destination;
         }
 
         private void ReplaceBodyURLs(RabbitMQMessage responseMsg, Uri destinationUrl, Uri proxyTargetUrl) {

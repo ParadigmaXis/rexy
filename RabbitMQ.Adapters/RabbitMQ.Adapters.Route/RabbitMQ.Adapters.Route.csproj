@@ -79,6 +79,7 @@
     <Compile Include="ParseRoutesFile.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Route.cs" />
+    <Compile Include="RouteNotFoundException.cs" />
     <Compile Include="TestFixtures\RoutesTest.cs" />
   </ItemGroup>
   <ItemGroup>
