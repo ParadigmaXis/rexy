@@ -2,10 +2,20 @@
 <routes>
   <route name="webservice1">
     <path>HelloWorld.Services/HelloWorldService.asmx</path>
-    <destination>http://dc:8888/HelloWorldService.asmx</destination>
+    <destination>http://dc:8888/helloworld/HelloWorldService.asmx</destination>
   </route>
   <route name="webservice2">
     <path>test/TestService.asmx</path>
     <destination>amqp://service1</destination>
+  </route>
+  <route name="webservice3">
+    <!-- 
+    Used to test http basic-authenticated endpoints.
+    username: httpwatch 
+    password: <a different one every time> 
+    see: http://www.httpwatch.com/httpgallery/authentication/
+    -->
+    <path>HelloWorld.Services/rest</path>
+    <destination>http://www.httpwatch.com/httpgallery/authentication/authenticatedimage/default.aspx</destination>
   </route>
 </routes>

@@ -184,8 +184,9 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             result.Headers.Add(Constants.RequestGatewayUrl, requestGatewayUrl.ToString());
             result.Headers.Add(Constants.RequestDestinationUrl, requestDestinationUrlWithQuery.ToString());
             result.Headers.Add(Constants.RequestIsAuthenticated, requestIsAuthenticated);
-            result.Headers.Add(Constants.UserPrincipalName, identity.Name);
-
+            if (requestIsAuthenticated) {
+                result.Headers.Add(Constants.UserPrincipalName, identity.Name);
+            }
             requestHeaders.ToList().ForEach(kvp => result.Headers.Add(Constants.HttpHeaderPrefix + kvp.Key, kvp.Value));
 
             logger.Debug("Basic Properties Created.");

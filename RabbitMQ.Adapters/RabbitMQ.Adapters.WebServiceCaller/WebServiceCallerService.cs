@@ -88,35 +88,36 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
         private void HandleRabbitMQRequestMessage(Client.Events.BasicDeliverEventArgs msg, IModel channel) {
             logger.Debug("Handling Request Message...");
 
-            var userPrincipalName = NormalizeUserPrincipalName(Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.UserPrincipalName]));
-            msg.BasicProperties.Headers.Remove(Constants.UserPrincipalName);
-
+            var requestIsAuthenticated = (bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated];
             WindowsIdentity identity = null;
-            try {
-                identity = new WindowsIdentity(userPrincipalName);
-            } catch(Exception e) {
-                logger.Error(e);
-            }
+            if (requestIsAuthenticated) {
+                var userPrincipalName = NormalizeUserPrincipalName(Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.UserPrincipalName]));
+                msg.BasicProperties.Headers.Remove(Constants.UserPrincipalName);
 
+                try {
+                    identity = new WindowsIdentity(userPrincipalName);
+                } catch (Exception e) {
+                    logger.Error(e);
+                }
+            }
             if (identity != null) {
                 using (identity.Impersonate()) {
                     logger.DebugFormat("Now I'm {0}.", WindowsIdentity.GetCurrent().Name);
                     logger.DebugFormat("Impersonation level: {0}.", identity.ImpersonationLevel);
 
-                    CallWebService(msg, channel);
+                    CallWebService(msg, channel, requestIsAuthenticated);
                 }
             } else {
-                CallWebService(msg, channel);
+                CallWebService(msg, channel, requestIsAuthenticated);
             }
 
             logger.Debug("Request Message Handle.");
         }
 
-        private void CallWebService(Client.Events.BasicDeliverEventArgs msg, IModel channel) {
+        private void CallWebService(Client.Events.BasicDeliverEventArgs msg, IModel channel, bool requestIsAuthenticated) {
             var requestMsg = new RabbitMQMessage(msg.BasicProperties, msg.Body);
 
-            var request = RabbitMQMessageToHttpRequest(requestMsg);
-            var requestIsAuthenticated = (bool)msg.BasicProperties.Headers[Constants.RequestIsAuthenticated];
+            var request = RabbitMQMessageToHttpRequest(requestMsg, requestIsAuthenticated);
             var routingKey = msg.BasicProperties.ReplyTo;
             var correlationId = msg.BasicProperties.CorrelationId;
 
@@ -175,7 +176,7 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
             return responseMsg;
         }
 
-        private static HttpWebRequest RabbitMQMessageToHttpRequest(RabbitMQMessage msg) {
+        private static HttpWebRequest RabbitMQMessageToHttpRequest(RabbitMQMessage msg, bool requestIsAuthenticated) {
             logger.Debug("Converting AMQP Message to Http Request...");
             
             var destinationUrl = Constants.GetUTF8String(msg.BasicProperties.Headers[Constants.RequestDestinationUrl]);
@@ -183,14 +184,16 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
             logger.DebugFormat("Destination URL: {0}", destinationUrl);
 
             var request = (HttpWebRequest)WebRequest.Create(destinationUrl);
-            request.Credentials = CredentialCache.DefaultNetworkCredentials;
+            if (requestIsAuthenticated) {
+                request.Credentials = CredentialCache.DefaultNetworkCredentials;
+            }
             request.Method = Constants.GetUTF8String((byte[])msg.BasicProperties.Headers[Constants.RequestMethod]);
             
             logger.DebugFormat("Method: {0}", request.Method);
             logger.DebugFormat("ContentLength: {0}", msg.Body.Length);
             logger.DebugFormat("Content: {0}", Constants.GetUTF8String(msg.Body));
 
-            RecoverHttpHeadersToRequest(msg.BasicProperties.GetHttpHeaders(), request);
+            RecoverHttpHeadersToRequest(msg.BasicProperties.GetHttpHeaders(), request, requestIsAuthenticated);
             request.ContentLength = msg.Body.Length;
             if (msg.Body.Length > 0) {
                 var requestStream = request.GetRequestStream();
@@ -203,11 +206,11 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
             return request;
         }
 
-        private static void RecoverHttpHeadersToRequest(IDictionary<string, string> httpHeaders, HttpWebRequest request) {
+        private static void RecoverHttpHeadersToRequest(IDictionary<string, string> httpHeaders, HttpWebRequest request, bool requestIsAuthenticated) {
             foreach (var kvp in httpHeaders) {
                 logger.DebugFormat("Header {0} - {1}", kvp.Key, kvp.Value);
 
-                if (kvp.Key == "Authorization") {
+                if (kvp.Key == "Authorization" && requestIsAuthenticated) {
                     continue;
                 }
                 if (Constants.HttpRestrictedHeaders.Contains(kvp.Key)) {
