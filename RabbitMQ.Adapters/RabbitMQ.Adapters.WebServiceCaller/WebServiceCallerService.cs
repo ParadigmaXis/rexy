@@ -129,8 +129,18 @@ namespace RabbitMQ.Adapters.WebServiceCaller {
                 logger.DebugFormat("Content length: {0}.", response.ContentLength);
                 responseMsg = HttpResponseToRabbitMQMessage(response);
                 logger.DebugFormat("Response received: {0}", Constants.GetUTF8String(responseMsg.Body));
-            } catch (Exception e) {
-                logger.ErrorFormat("Error calling service: {0}", e.Message);
+            } catch (WebException ex) {
+                logger.ErrorFormat("Error calling service: {0}", ex.Message);
+                var exx = ex.InnerException;
+                while (exx != null) {
+                    logger.ErrorFormat("\t{0}", exx.Message);
+                    exx = exx.InnerException;
+                }
+                if (ex.Response != null) {
+                    responseMsg = HttpResponseToRabbitMQMessage((HttpWebResponse)ex.Response);
+                } else {
+                    responseMsg = HttpResponseToRabbitMQMessage(null);
+                }
             }
 
             responseMsg.BasicProperties.CorrelationId = correlationId;
