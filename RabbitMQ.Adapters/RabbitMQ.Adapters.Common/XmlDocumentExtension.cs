@@ -2,12 +2,14 @@
 
 namespace RabbitMQ.Adapters.Common {
     public static class XmlDocumentExtension {
-        public static bool IsWsdl(this XmlDocument document) {
-            return document.DocumentElement.NamespaceURI == "http://schemas.xmlsoap.org/wsdl/" && document.DocumentElement.LocalName == "definitions";
+        public static bool IsWsdl(this System.Xml.Linq.XDocument document) {
+            var name = document.Root.Name;
+            return name.NamespaceName == "http://schemas.xmlsoap.org/wsdl/" && name.LocalName == "definitions";
         }
 
-        public static bool IsSoapMessage(this XmlDocument document) {
-            return document.DocumentElement.NamespaceURI == "http://schemas.xmlsoap.org/soap/envelope/" && document.DocumentElement.LocalName == "Envelope";
+        public static bool IsSoapEnvelope(this System.Xml.Linq.XDocument document) {
+            var name = document.Root.Name;
+            return name.NamespaceName == "http://schemas.xmlsoap.org/soap/envelope/" && name.LocalName == "Envelope";
         }
     }
 }

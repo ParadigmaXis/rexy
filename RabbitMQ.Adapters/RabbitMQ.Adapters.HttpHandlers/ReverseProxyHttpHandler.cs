@@ -105,17 +105,28 @@ namespace RabbitMQ.Adapters.HttpHandlers {
             }
 
             try {
-                var document = new XmlDocument();
-                document.LoadXml(body);
+                var document = System.Xml.Linq.XDocument.Parse(body);
                 if (document.IsWsdl()) {
-                    var nsmgr = new XmlNamespaceManager(new NameTable());
-                    nsmgr.AddNamespace("wsdl", "http://schemas.xmlsoap.org/wsdl/");
-                    nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/wsdl/soap/");
-                    nsmgr.AddNamespace("soap12", "http://schemas.xmlsoap.org/wsdl/soap12/");
-                    var nodes = document.DocumentElement.SelectNodes("/wsdl:definitions/wsdl:service/wsdl:port/soap:address", nsmgr);
-                    var nodes12 = document.DocumentElement.SelectNodes("/wsdl:definitions/wsdl:service/wsdl:port/soap12:address", nsmgr);
-                    foreach (var node in nodes.Cast<XmlElement>().Concat(nodes12.Cast<XmlElement>())) {
-                        var attr = node.Attributes.GetNamedItem("location");
+                    logger.Debug("Is WSDL Content.");
+                    var ports = document.Root
+                        .Descendants(System.Xml.Linq.XName.Get("service", "http://schemas.xmlsoap.org/wsdl/"))
+                        .SelectMany(d => d.Descendants(System.Xml.Linq.XName.Get("port", "http://schemas.xmlsoap.org/wsdl/")))
+                        .ToList();
+                    var nodes = ports.SelectMany(d => d.Descendants(System.Xml.Linq.XName.Get("address", "http://schemas.xmlsoap.org/wsdl/soap/")));
+                    var nodes12 = ports.SelectMany(d => d.Descendants(System.Xml.Linq.XName.Get("address", "http://schemas.xmlsoap.org/wsdl/soap12/")));
+                    foreach (var node in nodes.Concat(nodes12)) {
+                        var attr = node.Attribute(System.Xml.Linq.XName.Get("location"));
+                        attr.Value = attr.Value.Replace(destinationUrl.ToString(), proxyTargetUrl.ToString());
+                    }
+
+                    var schemas = document.Root
+                        .Descendants(System.Xml.Linq.XName.Get("schema", "http://www.w3.org/2001/XMLSchema"))
+                        .ToList();
+
+                    var includes = schemas.SelectMany(d => d.Descendants(System.Xml.Linq.XName.Get("include", "http://www.w3.org/2001/XMLSchema")));
+                    var imports = schemas.SelectMany(d => d.Descendants(System.Xml.Linq.XName.Get("import", "http://www.w3.org/2001/XMLSchema")));
+                    foreach (var i in includes.Concat(imports)) {
+                        var attr = i.Attribute(System.Xml.Linq.XName.Get("schemaLocation"));
                         attr.Value = attr.Value.Replace(destinationUrl.ToString(), proxyTargetUrl.ToString());
                     }
 
@@ -130,17 +141,11 @@ namespace RabbitMQ.Adapters.HttpHandlers {
                         responseMsg.Body = outms.ToArray();
                         responseMsg.BasicProperties.Headers["http-Content-Length"] = Encoding.UTF8.GetBytes(responseMsg.Body.Length.ToString());
                     }
-
-                    nsmgr.AddNamespace("s", "http://www.w3.org/2001/XMLSchema");
-                    var includes = document.DocumentElement.SelectNodes("/wsdl:definitions/s:schema/s:include", nsmgr);
-                    var imports = document.DocumentElement.SelectNodes("/wsdl:definitions/s:schema/s:import", nsmgr);
-                    foreach (var i in includes.Cast<XmlElement>().Concat(imports.Cast<XmlElement>())) {
-                        var attr = i.Attributes.GetNamedItem("schemaLocation");
-                        attr.Value = attr.Value.Replace(destinationUrl.ToString(), proxyTargetUrl.ToString());
-                    }
-                } else if (document.IsSoapMessage()) {
-                    logger.Debug("Is SOAP Message.");
+                } else if (document.IsSoapEnvelope()) {
+                    logger.Debug("Is SOAP Envelope Content.");
                     //TODO: process soap messages. Remove soap envelope?
+                } else {
+                    logger.Debug("Is unknown Content.");
                 }
             } catch (XmlException ex) {
                 logger.Info("Response will not be processed (it's not xml).", ex);
